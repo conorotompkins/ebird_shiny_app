@@ -13,4 +13,7 @@ Features:
   * Based on which species are in that hotspot and the mean abundance of those species, create  similarity index of hotspots.
   * User will be able to see which hotspots are similar and disimilar
   * User can click on a hotspot in a map
-    * Side chart will show top 5 most and least similar hotspots  
+    * Side chart will show top 5 most and least similar hotspots
+* Location guesser
+  * given a set of birds, build a model that classifies where the observation was made.
+  * map shaded by % positive prediction
