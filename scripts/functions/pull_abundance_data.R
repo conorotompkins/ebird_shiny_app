@@ -102,4 +102,4 @@ abunds_table <-
   unnest(abundance_table)
 
 abunds_table %>% 
-  write_csv("output/ebirdst_test_save.csv")
+  write_csv("data/big/ebirdst_test_save.csv")
