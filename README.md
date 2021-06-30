@@ -17,3 +17,11 @@ Features:
 * Location guesser
   * given a set of birds, build a model that classifies where the observation was made.
   * map shaded by % positive prediction
+* Making a model to predict whether a set of birds all exist in a square
+  * predictors
+    * using x y to predict
+    * some geography stuff like avg and sd elevation
+    * percent water/land
+    * coast indicators
+  * extract probabilities from binary classification
+* Network graph of which species coexist in the same areas
