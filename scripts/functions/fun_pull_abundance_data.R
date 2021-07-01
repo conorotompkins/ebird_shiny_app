@@ -9,7 +9,8 @@ library(lubridate)
 library(tigris)
 library(glue)
 library(tictoc)
-library(hrbrthemes)
+
+filter <- dplyr::filter
 
 #https://cornelllabofornithology.github.io/ebirdst/
 
@@ -89,17 +90,3 @@ get_abundance_table <- function(target_species_var){
   abunds_table
 }
 
-species_table <- tibble(species = c("Common Yellowthroat", "Indigo Bunting"))
-
-species_table
-
-species_table <- 
-  species_table %>% 
-  mutate(abundance_table = map(species, ~get_abundance_table(target_species_var = .x)))
-
-abunds_table <- 
-  species_table %>% 
-  unnest(abundance_table)
-
-abunds_table %>% 
-  write_csv("data/big/ebirdst_test_save.csv")

@@ -4,11 +4,19 @@ library(tigris)
 library(vroom)
 library(lubridate)
 library(hrbrthemes)
+library(tools)
 
 options(tigris_use_cache = TRUE)
 
-abunds_table <- vroom("data/big/ebirdst_test_save.csv")
+abunds_table <- 
+  list.files("data/big/species_abundance", full.names = T) %>% 
+  #keep(str_detect(., "American Redstart")) %>% 
+  set_names() %>% 
+  map_dfr(vroom, delim = ",", .id = 'comName') %>% 
+  mutate(comName = basename(comName) %>% file_path_sans_ext)
 
+abunds_table %>% 
+  distinct(comName)
 
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
@@ -28,67 +36,71 @@ pa_bbox <- pa_shape %>%
 pa_shape_moll <- pa_shape %>% 
   st_transform(mollweide)
 
-abunds_table %>% 
-  distinct(species)
-
 #find month with highest mean abundance per species, map that
-abunds_table %>% 
-  group_by(species, month, x, y) %>% 
-  summarize(abundance = mean(abundance, na.rm = T)) %>% 
-  ungroup() %>% 
-  group_by(species, month) %>%
-  mutate(mean_abundance = mean(abundance, na.rm = T)) %>%
+peak_abundance_map_data <- abunds_table %>% 
+  group_by(comName, month, x, y) %>% 
+  summarize(mean_abundance_loc = mean(abundance, na.rm = T)) %>% 
+  ungroup()
+
+peak_abundance_map_data <- peak_abundance_map_data %>% 
+  group_by(comName, month) %>%
+  mutate(mean_abundance = mean(mean_abundance_loc, na.rm = T)) %>%
   ungroup() %>%
-  group_by(species) %>% 
+  group_by(comName) %>% 
   filter(mean_abundance == max(mean_abundance, na.rm = T)) %>% 
   ungroup() %>% 
-  #st_as_sf(coords = c("x", "y"), crs = mollweide) %>% 
+  mutate(comName = fct_reorder(comName, mean_abundance, .desc = T))
+
+peak_abundance_map_plot <- peak_abundance_map_data %>% 
   ggplot() +
-  #geom_sf(aes(color = abundance)) +
-  geom_raster(aes(x, y, fill = abundance)) +
+  geom_raster(aes(x, y, fill = mean_abundance_loc)) +
   geom_sf(data = pa_shape_moll, alpha = 0, color = "black") +
   scale_fill_viridis_c() +
-  facet_wrap(species~month, ncol = 1) +
+  facet_wrap(comName~str_c("Peaks in: ", month)) +
   labs(fill = "Abundance") +
   theme_void()
 
-abunds_table %>% 
-  ggplot(aes(abundance, fill = species)) +
-  geom_histogram(alpha = .5) +
+peak_abundance_map_plot
+
+abundance_histogram <- abunds_table %>% 
+  ggplot(aes(abundance, fill = comName)) +
+  geom_histogram(alpha = .8, binwidth = 1) +
+  facet_wrap(~comName) +
+  guides(fill = "none") +
   theme_ipsum()
 
-
-
 top_areas <- abunds_table %>% 
-  group_by(species, x, y) %>% 
+  group_by(comName, x, y) %>% 
   summarize(mean_abundance = mean(abundance, na.rm = T)) %>% 
   ungroup() %>% 
-  arrange(species, desc(mean_abundance)) %>% 
-  group_by(species) %>% 
+  arrange(comName, desc(mean_abundance)) %>% 
+  group_by(comName) %>% 
   slice_head(n = 300) %>% 
-  mutate(id = row_number() %>% as.character)
+  mutate(id = row_number() %>% as.character) %>% 
+  ungroup()
 
-abunds_table %>% 
+location_tile_heatmap_plot <- abunds_table %>% 
   inner_join(top_areas) %>% 
   mutate(id = fct_reorder(id, mean_abundance)) %>% 
   ggplot(aes(x = date, y = id, fill = abundance)) +
   geom_tile() +
   scale_fill_viridis_c() +
-  facet_wrap(~species)
-
+  facet_wrap(~comName) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
 
 mean_abunds_table <- abunds_table %>% 
   mutate(month = month(date, label = T)) %>% 
-  group_by(species, month) %>% 
+  group_by(comName, month) %>% 
   summarize(mean_abundance = mean(abundance, na.rm = T)) %>% 
   ungroup()
 
-mean_abunds_table %>% 
-  ggplot(aes(x = month, y = mean_abundance, fill = species, color = species, group = species)) +
+polar_frequency_plot <- mean_abunds_table %>% 
+  ggplot(aes(x = month, y = mean_abundance, fill = comName, color = comName, group = comName)) +
   geom_polygon(alpha = .5) +
-  #facet_wrap(~species) +
-  #scale_y_continuous(limits = c(0, max(mean_abunds_table$mean_abundance))) +
   coord_polar(theta = "x") +
+  guides(fill = "none",
+         color = "none") +
   labs(title = "Species Abundance",
        subtitle = "2018 Pennsylvania",
        x = NULL,
