@@ -17,7 +17,7 @@ pa_songbirds %>%
 
 species_table <- pa_songbirds %>% 
   select(sciName, comName, speciesCode, order, familyComName, familySciName) %>% 
-  filter(familyComName == "New World Warblers")
+  filter(familyComName == "New World Sparrows")
 
 glimpse(species_table)
 
@@ -28,17 +28,3 @@ species_table <-
 species_table %>%
   select(comName, abundance_table) %>% 
   pwalk(~write_csv(x = .y, file = paste0("data/big/species_abundance/", .x, ".csv") ) )
-
-# abunds_table <- 
-#   species_table %>% 
-#   unnest(abundance_table)
-
-# abunds_table %>% 
-#   group_split(comName) %>% 
-#   walk(~write_csv(.x, paste0("data/big/species_abundance/", .x$comName[1], ".csv")))
-
-# read_csv("data/big/species_abundance/Ovenbird.csv") %>% 
-#   glimpse()
-# 
-# abunds_table %>% 
-#   write_csv("data/big/ebirdst_test_save.csv")
