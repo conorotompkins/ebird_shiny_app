@@ -14,7 +14,7 @@ abunds_table <-
   keep(str_detect(., "American Redstart")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
-  mutate(comName = basename(comName) %>% file_path_sans_ext)
+  mutate(comName = basename(comName) %>% file_path_sans_ext,)
 
 redstart_peak <- abunds_table %>% 
   group_by(comName, month) %>% 
@@ -127,7 +127,6 @@ leaflet(redstart_grid) %>%
   addPolygons(color = ~pal(abundance), opacity = 0, fillOpacity = .5) %>% 
   addLegend("bottomright", pal = pal, values = ~abundance,
             title = "Abundance",
-            #labFormat = labelFormat(prefix = "$"),
             opacity = 1
   )
 
