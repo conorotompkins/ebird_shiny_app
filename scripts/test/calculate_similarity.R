@@ -35,7 +35,8 @@ abunds_table <-
   #keep(str_detect(., "American Redstart")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
-  mutate(comName = basename(comName) %>% file_path_sans_ext)
+  mutate(comName = basename(comName) %>% file_path_sans_ext,
+         abundance = coalesce(abundance, 0))
 
 abundance_summary <- abunds_table %>%
   group_by(comName, month, x, y) %>% 
@@ -74,7 +75,7 @@ bird_grid %>%
   facet_wrap(~comName) +
   scale_fill_viridis_c()
 
-test_similarity <- bird_grid %>% 
+bird_grid <- bird_grid %>% 
   select(comName, month, centroid, abundance) %>% 
   st_drop_geometry() %>% 
   mutate(x = map_dbl(centroid, 1),
@@ -86,7 +87,7 @@ test_similarity %>%
   geom_sf(data = pa_shape_moll) +
   geom_point(aes(x, y)) 
 
-test_similarity <- test_similarity %>% 
+similarity_index <- bird_grid %>% 
   mutate(geo_id = str_c(x, y, sep = "_"),
          species_id = str_c(comName, month, sep = "_")) %>% 
   select(geo_id, species_id, abundance) %>% 
@@ -94,17 +95,20 @@ test_similarity <- test_similarity %>%
   rename(geo_id_1 = item1,
          geo_id_2 = item2)
 
-test_similarity %>% 
+similarity_index %>% 
   ggplot(aes(distance)) +
   geom_histogram()
 
-target_coords <- test_similarity %>% 
+similarity_index %>% 
+  write_csv("data/big/similarity_index.csv")
+
+target_coords <- similarity_index %>% 
   select(geo_id_1) %>% 
   slice_head(n = 1)
 
 target_coords
 
-similarity_geo <- test_similarity %>% 
+similarity_geo <- similarity_index %>% 
   filter(geo_id_1 == pull(target_coords)) %>% 
   separate(geo_id_2, into = c("x", "y"), sep = "_")
 
