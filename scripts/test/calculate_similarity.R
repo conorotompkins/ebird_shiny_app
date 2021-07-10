@@ -31,8 +31,7 @@ pa_shape_moll %>%
 
 abunds_table <- 
   list.files("data/big/species_abundance", full.names = T) %>% 
-  .[1:5] %>% 
-  #keep(str_detect(., "American Redstart")) %>% 
+  #.[1:10] %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
   mutate(comName = basename(comName) %>% file_path_sans_ext,
@@ -46,10 +45,15 @@ abundance_summary <- abunds_table %>%
          geo_id = str_c(x, y, sep = "_")) %>% 
   st_as_sf(coords = c("x", "y"), crs = mollweide)
 
+abundance_summary %>% 
+  st_drop_geometry() %>% 
+  count(comName) %>% 
+  distinct(n)
+
 rm(abunds_table)
 
 grid_geo <- abundance_summary %>% 
-  st_make_grid(crs = mollweide) %>% 
+  st_make_grid(n = 10, crs = mollweide) %>% 
   st_as_sf()
 
 grid_geo %>% 
@@ -64,6 +68,11 @@ bird_grid <- grid_geo %>%
   summarize(n = n(),
             abundance = mean(abundance, na.rm = T)) %>% 
   ungroup()
+
+bird_grid %>% 
+  st_drop_geometry() %>%
+  count(comName) %>% 
+  distinct(n)
 
 rm(abundance_summary)
 
@@ -81,7 +90,11 @@ bird_grid <- bird_grid %>%
   mutate(x = map_dbl(centroid, 1),
          y = map_dbl(centroid, 2))
 
-test_similarity %>%
+bird_grid %>%
+  count(x, y) %>%
+  distinct(n)
+
+bird_grid %>%
   count(x, y) %>% 
   ggplot() +
   geom_sf(data = pa_shape_moll) +
@@ -91,9 +104,14 @@ similarity_index <- bird_grid %>%
   mutate(geo_id = str_c(x, y, sep = "_"),
          species_id = str_c(comName, month, sep = "_")) %>% 
   select(geo_id, species_id, abundance) %>% 
-  pairwise_dist(geo_id, species_id, abundance, diag = F, upper = F) %>% 
+  pairwise_dist(geo_id, species_id, abundance, diag = F, upper = T) %>% 
   rename(geo_id_1 = item1,
          geo_id_2 = item2)
+
+similarity_index %>% 
+  count(geo_id_1) %>% 
+  distinct(n)
+  
 
 similarity_index %>% 
   ggplot(aes(distance)) +
@@ -104,7 +122,7 @@ similarity_index %>%
 
 target_coords <- similarity_index %>% 
   select(geo_id_1) %>% 
-  slice_head(n = 1)
+  filter(row_number() == 50)
 
 target_coords
 
