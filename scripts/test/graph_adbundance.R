@@ -10,7 +10,7 @@ options(tigris_use_cache = TRUE)
 
 abunds_table <- 
   list.files("data/big/species_abundance", full.names = T) %>% 
-  #keep(str_detect(., "American Redstart")) %>% 
+  keep(str_detect(., "Warbler")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
   mutate(comName = basename(comName) %>% file_path_sans_ext)
@@ -58,16 +58,26 @@ peak_abundance_map_plot <- peak_abundance_map_data %>%
   scale_fill_viridis_c() +
   facet_wrap(comName~str_c("Peaks in: ", month)) +
   labs(fill = "Abundance") +
-  theme_void()
+  theme_void() +
+  theme(plot.background = element_rect(fill = "white"))
 
-peak_abundance_map_plot
+peak_abundance_map_plot %>% 
+  ggsave(filename = "output/peak_abundance_map_plot.png", 
+         width = 15, 
+         height = 10)
 
 abundance_histogram <- abunds_table %>% 
   ggplot(aes(abundance, fill = comName)) +
   geom_histogram(alpha = .8, binwidth = 1) +
   facet_wrap(~comName) +
   guides(fill = "none") +
-  theme_ipsum()
+  theme_ipsum() +
+  theme(plot.background = element_rect(fill = "white"))
+
+abundance_histogram %>% 
+  ggsave(filename = "output/abundance_histogram.png",
+         width = 15,
+         height = 15)
 
 top_areas <- abunds_table %>% 
   group_by(comName, x, y) %>% 
@@ -89,6 +99,11 @@ location_tile_heatmap_plot <- abunds_table %>%
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
 
+location_tile_heatmap_plot %>% 
+  ggsave(filename = "output/location_tile_heatmap_plot.png",
+         width = 15,
+         height = 15)
+
 mean_abunds_table <- abunds_table %>% 
   mutate(month = month(date, label = T)) %>% 
   group_by(comName, month) %>% 
@@ -109,5 +124,8 @@ polar_frequency_plot <- mean_abunds_table %>%
        color = "Species") +
   theme_bw()
 
-
+polar_frequency_plot %>% 
+  ggsave(filename = "output/polar_frequency_plot.png",
+         width = 10,
+         height = 10)
 
