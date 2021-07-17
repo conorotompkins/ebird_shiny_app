@@ -1,6 +1,8 @@
 library(tidyverse)
 library(sf)
 library(tigris)
+library(leaflet)
+library(mapdeck)
 
 set.seed(1234)
 
@@ -104,3 +106,41 @@ similarity_grid %>%
   geom_sf_label(aes(label = grid_id)) +
   scale_fill_viridis_c(direction = 1) +
   labs(fill = "Distance")
+
+similarity_grid_distance <- similarity_grid %>% 
+  st_join(similarity_geo, join = st_intersects) %>% 
+  st_transform(crs = "EPSG:4326")
+
+pal <- colorNumeric(
+  palette = "viridis",
+  domain = similarity_grid_distance$distance)
+
+similarity_grid_distance %>% 
+  mapdeck() %>% 
+  add_sf(fill_colour = "distance",
+         fill_opacity = .8,
+         legend = T,
+         auto_highlight = T,
+         tooltip = "grid_id_compare")
+
+similarity_grid_distance %>% 
+  leaflet() %>%
+  addProviderTiles(providers$Stamen.TonerLite,
+                   options = providerTileOptions(noWrap = TRUE,
+                                                 #minZoom = 9,
+                                                 #maxZoom = 8
+                   )) %>%
+  # setView(lng = -80.01181092430839, lat = 40.44170119122286, zoom = 10) %>%
+  # setMaxBounds(lng1 = -79.5, lng2 = -80.5, lat1 = 40.1, lat2 = 40.7) %>%
+  addPolygons(layerId = ~geometry,
+              fillColor = ~pal(distance),
+              fillOpacity = .7,
+              stroke = TRUE,
+              color = "#FCCF02",
+              weight = 1) %>% 
+  addLegend("bottomright", pal = pal, values = ~distance,
+            title = "Distance",
+            opacity = 1
+  )
+
+
