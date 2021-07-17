@@ -35,7 +35,7 @@ ui <- shinyUI(fluidPage(
         mainPanel(
             textOutput("text"),
             tableOutput("table"),
-            plotOutput("leaflet_map")
+            plotOutput("map")
             
         )
     )
