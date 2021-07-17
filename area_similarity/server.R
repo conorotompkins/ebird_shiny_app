@@ -68,40 +68,17 @@ server <- shinyServer(function(input, output) {
         
     })
     
-    # output$map <- renderPlot({
-    #     
-    #     filtered_similarity_data_reactive() %>% 
-    #         ggplot() +
-    #         geom_tile(aes(x, y, fill = distance)) +
-    #         geom_sf(data = pa_shape_moll, alpha = 0) +
-    #         geom_point(data = selected_geo_shape_reactive(),
-    #                   aes(x, y)) +
-    #         scale_fill_viridis_c(direction = -1) +
-    #         labs(fill = "Similarity")
-    #     
-    # })
-    
-    output$leaflet_map <- renderLeaflet({
-        
-        filtered_similarity_data_reactive() %>% 
-            separate(geo_id_2, into = c("x", "y"), sep = "_") %>% 
-            mutate(across(.cols = c(x, y), as.double)) %>% 
-            st_as_sf(coords = c("x", "y"), crs = mollweide) %>% 
-            st_make_grid(n = 10, crs = mollweide) %>% 
-            leaflet() %>% 
-            addProviderTiles(providers$Stamen.TonerLite,
-                             options = providerTileOptions(noWrap = TRUE,
-                                                           #minZoom = 9, 
-                                                           #maxZoom = 8
-                             )) %>% 
-            # setView(lng = -80.01181092430839, lat = 40.44170119122286, zoom = 10) %>% 
-            # setMaxBounds(lng1 = -79.5, lng2 = -80.5, lat1 = 40.1, lat2 = 40.7) %>% 
-            addPolygons(layerId = ~geo_id,
-                        fillColor = "#000000",
-                        fillOpacity = .7,
-                        stroke = TRUE,
-                        color = "#FCCF02",
-                        weight = 1)
+    output$map <- renderPlot({
+
+        filtered_similarity_data_reactive() %>%
+            ggplot() +
+            geom_tile(aes(x, y, fill = distance)) +
+            geom_sf(data = pa_shape_moll, alpha = 0) +
+            geom_point(data = selected_geo_shape_reactive(),
+                      aes(x, y)) +
+            scale_fill_viridis_c(direction = -1) +
+            labs(fill = "Similarity")
+
     })
-    
+
 })
