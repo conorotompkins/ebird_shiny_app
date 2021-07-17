@@ -8,18 +8,22 @@ library(tigris)
 options(tigris_use_cache = TRUE)
 
 #create similarity index
+#load similarity index data
 similarity_index <- read_csv("data/big/similarity_index.csv") %>% 
-    arrange(geo_id_1, distance) %>% 
-    separate(geo_id_2, into = c("x", "y"), sep = "_") %>% 
-    mutate(across(.cols = c(x, y), as.numeric))
+    rename(geo_id_reference = geo_id_1,
+           geo_id_compare = geo_id_2)
 
-geo_id_lookup <- similarity_index %>% 
-    distinct(geo_id_1) %>% 
-    mutate(geo_id = row_number())
-
-similarity_index <- similarity_index %>% 
-    left_join(geo_id_lookup, by = "geo_id_1") %>% 
-    select(geo_id, everything())
+#create IDs for each geo_id
+geo_id_index <- similarity_index %>% 
+    select(geo_id_reference, geo_id_compare) %>% 
+    pivot_longer(cols = everything(),
+                 names_to = "type", values_to = "geo_id") %>% 
+    arrange(geo_id) %>% 
+    distinct(geo_id) %>% 
+    separate(geo_id, into = c("x", "y"), sep = "_", remove = F) %>% 
+    mutate(across(.cols = c(x, y), as.numeric)) %>% 
+    arrange(x, y) %>% 
+    mutate(grid_id = row_number())
 
 #create pa shape
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
@@ -39,46 +43,100 @@ pa_shape_moll <- pa_shape %>%
 # Define server logic required to draw a histogram
 server <- shinyServer(function(input, output) {
     
-    selected_geo_id_reactive <- reactive({
+    reference_coords_reactive <- reactive({
         
-        input$geo_id_selection
+        req(input$reference_coords)
+        
+        print(input$reference_coords)
+        
+        geo_id_index %>% 
+            filter(grid_id == input$reference_coords) %>% 
+            select(geo_id)
         
     })
     
-    
-    filtered_similarity_data_reactive <- reactive({
+    similarity_geo_reactive <- reactive({
+        
+        req(input$reference_coords)
         
         similarity_index %>% 
-            filter(geo_id == selected_geo_id_reactive())
+            #join comparison geo_ids to get their grid_id
+            left_join(geo_id_index, by = c("geo_id_compare" = "geo_id")) %>% 
+            rename(grid_id_compare = grid_id) %>% 
+            #filter on the reference geo_id
+            filter(geo_id_reference == pull(reference_coords_reactive())) %>% 
+            separate(geo_id_compare, into = c("x_compare", "y_compare"), sep = "_")
         
     })
     
-    selected_geo_shape_reactive <- reactive({
+    reference_coords_updated_reactive <- reactive({
         
-        filtered_similarity_data_reactive() %>% 
-            distinct(geo_id, geo_id_1) %>% 
-            separate(geo_id_1, into = c("x", "y"), sep = "_") %>% 
-            mutate(across(.cols = c(x, y), as.double))
+        req(input$reference_coords)
+        
+        reference_coords_reactive() %>% 
+            separate(geo_id, into = c("x", "y"), sep = "_") %>% 
+            mutate(across(everything(), as.numeric)) %>% 
+            st_as_sf(coords = c("x", "y"), crs = mollweide)
+    })
+    
+    
+    similarity_geo_updated_reactive <- reactive({
+        
+        req(input$reference_coords)
+        
+        similarity_geo_reactive() %>% 
+            #turn compare x,y into sf coordinates
+            mutate(across(.cols = c(x_compare, y_compare), as.numeric)) %>% 
+            st_as_sf(coords = c("x_compare", "y_compare"), crs = mollweide) %>%
+            #join to get grid_id of reference coords
+            left_join(geo_id_index, by = c("geo_id_reference" = "geo_id")) %>% 
+            rename(grid_id_reference = grid_id) %>% 
+            #reorder variables
+            select(geo_id_reference, grid_id_reference, geometry, grid_id_compare, distance)
+        
+    })
+    
+    
+    similarity_grid_reactive <- reactive({
+        
+        req(input$reference_coords)
+        
+        similarity_geo_updated_reactive() %>% 
+            #create grid based on compare coords from similarity_geo
+            st_make_grid(n = 10, crs = mollweide) %>% 
+            st_as_sf() %>%
+            #get grid_id from transformed geo_id_index
+            st_join(geo_id_index %>% 
+                        separate(geo_id, into = c("x", "y"), sep = "_") %>% 
+                        mutate(across(.cols = everything(), as.numeric)) %>% 
+                        st_as_sf(coords = c("x", "y"), crs = mollweide),
+                    join = st_intersects)
         
     })
     
     output$table <- renderTable({
         
-        selected_geo_shape_reactive()
+        req(input$reference_coords)
+        
+        similarity_grid_reactive() %>% 
+            st_join(similarity_geo_updated_reactive(), join = st_intersects)
         
     })
     
     output$map <- renderPlot({
-
-        filtered_similarity_data_reactive() %>%
+        
+        req(input$reference_coords)
+        
+        similarity_grid_reactive() %>% 
+            st_join(similarity_geo_updated_reactive(), join = st_intersects) %>% 
             ggplot() +
-            geom_tile(aes(x, y, fill = distance)) +
+            geom_sf(aes(fill = distance), lwd = 0) +
             geom_sf(data = pa_shape_moll, alpha = 0) +
-            geom_point(data = selected_geo_shape_reactive(),
-                      aes(x, y)) +
-            scale_fill_viridis_c(direction = -1) +
-            labs(fill = "Similarity")
-
+            geom_sf(data = reference_coords_updated_reactive()) +
+            geom_sf_label(aes(label = grid_id)) +
+            scale_fill_viridis_c(direction = 1) +
+            labs(fill = "Distance")
+        
     })
-
+    
 })
