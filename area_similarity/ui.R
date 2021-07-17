@@ -23,7 +23,7 @@ ui <- shinyUI(fluidPage(
     sidebarLayout(
         sidebarPanel(
             numericInput(
-                inputId = "geo_id_selection",
+                inputId = "reference_coords",
                 label = "Area",
                 value = 1,
                 min = 1, 
@@ -34,7 +34,7 @@ ui <- shinyUI(fluidPage(
         # Show a plot of the generated distribution
         mainPanel(
             textOutput("text"),
-            tableOutput("table"),
+            #tableOutput("table"),
             plotOutput("map")
             
         )
