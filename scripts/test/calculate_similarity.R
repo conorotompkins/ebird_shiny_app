@@ -104,14 +104,13 @@ similarity_index <- bird_grid %>%
   mutate(geo_id = str_c(x, y, sep = "_"),
          species_id = str_c(comName, month, sep = "_")) %>% 
   select(geo_id, species_id, abundance) %>% 
-  pairwise_dist(geo_id, species_id, abundance, diag = F, upper = T) %>% 
+  pairwise_dist(geo_id, species_id, abundance, diag = T, upper = T) %>% 
   rename(geo_id_1 = item1,
          geo_id_2 = item2)
 
 similarity_index %>% 
   count(geo_id_1) %>% 
   distinct(n)
-  
 
 similarity_index %>% 
   ggplot(aes(distance)) +
@@ -119,31 +118,3 @@ similarity_index %>%
 
 similarity_index %>% 
   write_csv("data/big/similarity_index.csv")
-
-target_coords <- similarity_index %>% 
-  select(geo_id_1) %>% 
-  filter(row_number() == 50)
-
-target_coords
-
-similarity_geo <- similarity_index %>% 
-  filter(geo_id_1 == pull(target_coords)) %>% 
-  separate(geo_id_2, into = c("x", "y"), sep = "_")
-
-similarity_geo
-
-target_coords <- target_coords %>% 
-  separate(geo_id_1, into = c("x", "y"), sep = "_") %>% 
-  mutate(across(everything(), as.numeric)) %>% 
-  st_as_sf(coords = c("x", "y"), crs = mollweide)
-
-similarity_geo %>% 
-  mutate(across(.cols = c(x, y), as.numeric)) %>% 
-  ggplot() +
-  geom_tile(aes(x, y, fill = distance)) +
-  geom_sf(data = pa_shape_moll, alpha = 0) +
-  geom_sf(data = target_coords) +
-  scale_fill_viridis_c(direction = -1) +
-  labs(fill = "Similarity")
- 
-  
