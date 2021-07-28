@@ -190,6 +190,8 @@ server <- shinyServer(function(input, output) {
     observeEvent(input$map_shape_click, { 
         p <- input$map_shape_click  # typo was on this line
         print(p)
+        
+        output$clicked_grid_id <- renderText(p$id)
     })
     
 })

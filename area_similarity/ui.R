@@ -34,7 +34,8 @@ ui <- shinyUI(fluidPage(
         # Show a plot of the generated distribution
         mainPanel(
             textOutput("text"),
-            tableOutput("table"),
+            #tableOutput("table"),
+            textOutput("clicked_grid_id"),
             leafletOutput("map")
             
         )
