@@ -4,6 +4,7 @@ library(tidyverse)
 
 library(sf)
 library(tigris)
+library(leaflet)
 
 options(tigris_use_cache = TRUE)
 
@@ -49,9 +50,14 @@ server <- shinyServer(function(input, output) {
         
         print(input$reference_coords)
         
-        geo_id_index %>% 
+        reference_coords <- geo_id_index %>% 
             filter(grid_id == input$reference_coords) %>% 
             select(geo_id)
+        
+        print("reference_coords")
+        reference_coords %>% 
+            print()
+        return(reference_coords)
         
     })
     
@@ -59,13 +65,19 @@ server <- shinyServer(function(input, output) {
         
         req(input$reference_coords)
         
-        similarity_index %>% 
+        similarity_geo <- similarity_index %>% 
             #join comparison geo_ids to get their grid_id
             left_join(geo_id_index, by = c("geo_id_compare" = "geo_id")) %>% 
             rename(grid_id_compare = grid_id) %>% 
             #filter on the reference geo_id
-            filter(geo_id_reference == pull(reference_coords_reactive())) %>% 
+            filter(geo_id_reference == pull(reference_coords_reactive(), geo_id)) %>% 
             separate(geo_id_compare, into = c("x_compare", "y_compare"), sep = "_")
+        
+        print("similarity_geo")
+        similarity_geo %>% 
+            head() %>% 
+            print()
+        return(similarity_geo)
         
     })
     
@@ -73,10 +85,14 @@ server <- shinyServer(function(input, output) {
         
         req(input$reference_coords)
         
-        reference_coords_reactive() %>% 
+        reference_coords_updated <- reference_coords_reactive() %>% 
             separate(geo_id, into = c("x", "y"), sep = "_") %>% 
             mutate(across(everything(), as.numeric)) %>% 
             st_as_sf(coords = c("x", "y"), crs = mollweide)
+        
+        print("reference_coords_updated")
+        print(reference_coords_updated)
+        return(reference_coords_updated)
     })
     
     
@@ -84,7 +100,7 @@ server <- shinyServer(function(input, output) {
         
         req(input$reference_coords)
         
-        similarity_geo_reactive() %>% 
+        similarity_geo_updated <- similarity_geo_reactive() %>% 
             #turn compare x,y into sf coordinates
             mutate(across(.cols = c(x_compare, y_compare), as.numeric)) %>% 
             st_as_sf(coords = c("x_compare", "y_compare"), crs = mollweide) %>%
@@ -93,7 +109,10 @@ server <- shinyServer(function(input, output) {
             rename(grid_id_reference = grid_id) %>% 
             #reorder variables
             select(geo_id_reference, grid_id_reference, geometry, grid_id_compare, distance)
-        
+      
+        print("similarity_geo_updated")
+        print(similarity_geo_updated)
+        return(similarity_geo_updated)
     })
     
     
@@ -118,25 +137,59 @@ server <- shinyServer(function(input, output) {
         
         req(input$reference_coords)
         
-        similarity_grid_reactive() %>% 
-            st_join(similarity_geo_updated_reactive(), join = st_intersects)
+        similarity_grid_reactive() #%>% 
+            #st_join(similarity_geo_updated_reactive(), join = st_intersects)
         
     })
     
-    output$map <- renderPlot({
+    output$map <- renderLeaflet({
         
         req(input$reference_coords)
         
-        similarity_grid_reactive() %>% 
+        similarity_grid_distance <- similarity_grid_reactive() %>% 
             st_join(similarity_geo_updated_reactive(), join = st_intersects) %>% 
-            ggplot() +
-            geom_sf(aes(fill = distance), lwd = 0) +
-            geom_sf(data = pa_shape_moll, alpha = 0) +
-            geom_sf(data = reference_coords_updated_reactive()) +
-            geom_sf_label(aes(label = grid_id)) +
-            scale_fill_viridis_c(direction = 1) +
-            labs(fill = "Distance")
+            st_transform(crs = "EPSG:4326")
         
+        pal <- colorNumeric(
+            palette = "viridis",
+            domain = similarity_grid_distance$distance)
+        
+        similarity_grid_distance %>%
+            leaflet() %>%
+            addProviderTiles(providers$Stamen.TonerLite,
+                             options = providerTileOptions(noWrap = TRUE,
+                                                           #minZoom = 9,
+                                                           #maxZoom = 8
+                             )) %>%
+            addPolygons(layerId = ~grid_id_compare,
+                        fillColor = ~pal(distance),
+                        fillOpacity = .7,
+                        stroke = F,
+                        #color = "#FCCF02",
+                        #weight = 1,
+                        # highlightOptions = highlightOptions(
+                        #     stroke = T,
+                        #     color = "black",
+                        #     weight = 2,
+                        #     opacity = NULL,
+                        #     fill = NULL,
+                        #     fillColor = NULL,
+                        #     fillOpacity = NULL,
+                        #     dashArray = NULL,
+                        #     bringToFront = T,
+                        #     sendToBack = NULL
+                        # )
+                        ) %>%
+            addLegend("bottomright", pal = pal, values = ~distance,
+                      title = "Distance",
+                      opacity = 1
+            )
+        
+    })
+    
+    observeEvent(input$map_shape_click, { 
+        p <- input$map_shape_click  # typo was on this line
+        print(p)
     })
     
 })

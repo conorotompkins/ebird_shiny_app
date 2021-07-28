@@ -34,8 +34,8 @@ ui <- shinyUI(fluidPage(
         # Show a plot of the generated distribution
         mainPanel(
             textOutput("text"),
-            #tableOutput("table"),
-            plotOutput("map")
+            tableOutput("table"),
+            leafletOutput("map")
             
         )
     )
