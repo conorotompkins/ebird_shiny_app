@@ -1,6 +1,6 @@
 #function to prepare similarity index data for graphing
 
-prep_similarity_index <- function(similarity_index_data){
+prep_similarity_index <- function(similarity_index_data, select_grid_id){
   
   #create IDs for each geo_id
   geo_id_index <- similarity_index_data %>% 
@@ -23,7 +23,7 @@ prep_similarity_index <- function(similarity_index_data){
   
   #choose one grid_id to test
   reference_coords <- geo_id_index %>% 
-    filter(grid_id == 72) %>% 
+    filter(grid_id == select_grid_id) %>% 
     select(geo_id)
   
   similarity_geo <- similarity_index %>% 
@@ -65,6 +65,8 @@ prep_similarity_index <- function(similarity_index_data){
   
   similarity_grid_distance <- similarity_grid %>% 
     st_join(similarity_geo, join = st_intersects)
+  
+  return(similarity_grid_distance)
   
 }
   
