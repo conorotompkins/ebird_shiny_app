@@ -9,6 +9,7 @@ set.seed(1234)
 options(tigris_use_cache = TRUE)
 
 source("scripts/functions/prep_similarity_index.R")
+source("scripts/functions/get_reference_coords.R")
 
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
@@ -40,13 +41,15 @@ similarity_index %>%
 
 similarity_grid_distance <- prep_similarity_index(similarity_index, 72)
 
+reference_coords <- get_reference_coords(similarity_index, 72)
+
 similarity_grid_distance %>% 
   #st_join(similarity_geo, join = st_intersects) %>% 
   ggplot() +
   geom_sf(aes(fill = distance), lwd = 0) +
   geom_sf(data = pa_shape_moll, alpha = 0) +
-  #geom_sf(data = reference_coords) +
   geom_sf_label(aes(label = grid_id)) +
+  geom_sf(data = reference_coords) +
   scale_fill_viridis_c(direction = 1) +
   labs(fill = "Distance")
 
@@ -61,7 +64,8 @@ similarity_grid_distance %>%
          fill_opacity = .8,
          legend = T,
          auto_highlight = T,
-         tooltip = "grid_id_compare")
+         tooltip = "grid_id_compare") %>% 
+  add_sf(data = st_transform(reference_coords, crs = "EPSG:4326"))
 
 similarity_grid_distance %>% 
   st_transform(crs = "EPSG:4326") %>% 
@@ -78,7 +82,7 @@ similarity_grid_distance %>%
               fillOpacity = .7,
               stroke = F,
               #color = "#FCCF02",
-              weight = 1) %>% 
+              weight = 1) %>%
   addLegend("bottomright", pal = pal, values = ~distance,
             title = "Distance",
             opacity = 1
