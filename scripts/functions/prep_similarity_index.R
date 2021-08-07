@@ -2,8 +2,12 @@
 
 prep_similarity_grid <- function(similarity_index_data, select_grid_id){
   
+  similarity_grid <- similarity_index_data %>% 
+    rename(geo_id_reference = geo_id_1,
+           geo_id_compare = geo_id_2) 
+  
   #create IDs for each geo_id
-  geo_id_index <- similarity_index_data %>% 
+  geo_id_index <- similarity_grid %>% 
     select(geo_id_reference, geo_id_compare) %>% 
     pivot_longer(cols = everything(),
                  names_to = "type", values_to = "geo_id") %>% 
@@ -26,7 +30,7 @@ prep_similarity_grid <- function(similarity_index_data, select_grid_id){
     filter(grid_id == select_grid_id) %>% 
     select(geo_id)
   
-  similarity_geo <- similarity_index %>% 
+  similarity_geo <- similarity_grid%>% 
     #join comparison geo_ids to get their grid_id
     left_join(geo_id_index, by = c("geo_id_compare" = "geo_id")) %>% 
     rename(grid_id_compare = grid_id) %>% 
