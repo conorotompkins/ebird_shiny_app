@@ -13,9 +13,9 @@ source("scripts/functions/get_reference_coords.R")
 
 #create similarity index
 #load similarity index data
-similarity_index <- read_csv("data/big/similarity_index.csv") %>% 
-  rename(geo_id_reference = geo_id_1,
-         geo_id_compare = geo_id_2)
+similarity_index <- read_csv("data/big/similarity_index.csv") #%>% 
+  # rename(geo_id_reference = geo_id_1,
+  #        geo_id_compare = geo_id_2)
 # 
 # #create IDs for each geo_id
 # geo_id_index <- similarity_index %>% 
@@ -51,19 +51,21 @@ server <- shinyServer(function(input, output) {
     
     req(input$reference_coords)
     
-    prep_similarity_index(similarity_index, input$reference_coords)
+    prep_similarity_grid(similarity_index, input$reference_coords) %>% 
+      mutate(highlight_grid = grid_id_reference == grid_id_compare,
+             highlight_grid = as.factor(highlight_grid))
     
   })
   
-  reference_coords_reactive <- reactive({
-    
-    req(similarity_grid_reactive())
-    
-    get_reference_coords(similarity_grid_reactive(), input$reference_coords) %>% 
-      st_transform(crs = "EPSG:4326")
-    
-    
-  })
+  # reference_coords_reactive <- reactive({
+  #   
+  #   req(similarity_grid_reactive())
+  #   
+  #   get_reference_coords(similarity_grid_reactive(), input$reference_coords) %>% 
+  #     st_transform(crs = "EPSG:4326")
+  #   
+  #   
+  # })
   
   # reference_coords_reactive <- reactive({
   #     
@@ -175,33 +177,19 @@ server <- shinyServer(function(input, output) {
       palette = "viridis",
       domain = similarity_grid_distance$distance)
     
-    similarity_grid_distance %>%
+    similarity_grid_distance %>% 
+      mutate(grid_opacity = case_when(highlight_grid == "TRUE" ~ .9,
+                                      highlight_grid == "FALSE" ~ .6)) %>% 
+      st_transform(crs = "EPSG:4326") %>% 
       leaflet() %>%
       addProviderTiles(providers$Stamen.TonerLite,
-                       options = providerTileOptions(noWrap = TRUE,
-                                                     #minZoom = 9,
-                                                     #maxZoom = 8
+                       options = providerTileOptions(noWrap = TRUE
                        )) %>%
       addPolygons(layerId = ~grid_id_compare,
                   fillColor = ~pal(distance),
-                  fillOpacity = .7,
+                  fillOpacity = ~grid_opacity,
                   stroke = F,
-                  #color = "#FCCF02",
-                  #weight = 1,
-                  # highlightOptions = highlightOptions(
-                  #     stroke = T,
-                  #     color = "black",
-                  #     weight = 2,
-                  #     opacity = NULL,
-                  #     fill = NULL,
-                  #     fillColor = NULL,
-                  #     fillOpacity = NULL,
-                  #     dashArray = NULL,
-                  #     bringToFront = T,
-                  #     sendToBack = NULL
-                  # )
-      ) %>%
-      #addPolygons(reference_coords_reactive()) %>% 
+                  weight = 1) %>%
       addLegend("bottomright", pal = pal, values = ~distance,
                 title = "Distance",
                 opacity = 1
@@ -213,7 +201,7 @@ server <- shinyServer(function(input, output) {
     p <- input$map_shape_click  # typo was on this line
     print(p)
     
-    output$clicked_grid_id <- renderText(p$id)
+    output$clicked_grid_id <- renderPrint(p$id)
   })
   
 })
