@@ -17,27 +17,13 @@ similarity_index <- read_csv("data/big/similarity_index.csv") %>%
 ui <- shinyUI(fluidPage(
     
     # Application title
-    titlePanel("Hotspot Similarity Index"),
-    
-    # Sidebar with a slider input for number of bins
-    sidebarLayout(
-        sidebarPanel(
-            numericInput(
-                inputId = "reference_coords",
-                label = "Area",
-                value = 1,
-                min = 1, 
-                max = 100
-            )
-        ),
+    titlePanel("eBird Region Similarity Index"),
+    # Show a plot of the generated distribution
+    mainPanel(
+        textOutput("text"),
+        #tableOutput("table"),
+        verbatimTextOutput("clicked_grid_id"),
+        leafletOutput("map")
         
-        # Show a plot of the generated distribution
-        mainPanel(
-            textOutput("text"),
-            #tableOutput("table"),
-            verbatimTextOutput("clicked_grid_id"),
-            leafletOutput("map")
-            
-        )
     )
 ))

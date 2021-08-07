@@ -13,22 +13,7 @@ source("scripts/functions/get_reference_coords.R")
 
 #create similarity index
 #load similarity index data
-similarity_index <- read_csv("data/big/similarity_index.csv") #%>% 
-  # rename(geo_id_reference = geo_id_1,
-  #        geo_id_compare = geo_id_2)
-# 
-# #create IDs for each geo_id
-# geo_id_index <- similarity_index %>% 
-#     select(geo_id_reference, geo_id_compare) %>% 
-#     pivot_longer(cols = everything(),
-#                  names_to = "type", values_to = "geo_id") %>% 
-#     arrange(geo_id) %>% 
-#     distinct(geo_id) %>% 
-#     separate(geo_id, into = c("x", "y"), sep = "_", remove = F) %>% 
-#     mutate(across(.cols = c(x, y), as.numeric)) %>% 
-#     arrange(x, y) %>% 
-#     mutate(grid_id = row_number())
-
+similarity_index <- read_csv("data/big/similarity_index.csv")
 #create pa shape
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
@@ -44,164 +29,94 @@ pa_bbox <- pa_shape %>%
 pa_shape_moll <- pa_shape %>% 
   st_transform(mollweide)
 
+grid_geo <- st_read("data/big/grid_shapefile/grid_shapefile.shp")
+
 # Define server logic required to draw a histogram
-server <- shinyServer(function(input, output) {
+server <- shinyServer(function(input, output, session) {
   
   similarity_grid_reactive <- reactive({
     
-    req(input$reference_coords)
+    req(input$map_shape_click$id)
     
-    prep_similarity_grid(similarity_index, input$reference_coords) %>% 
+    prep_similarity_grid(similarity_index, selected_grid_id_reactive()) %>% 
       mutate(highlight_grid = grid_id_reference == grid_id_compare,
              highlight_grid = as.factor(highlight_grid))
     
   })
   
-  # reference_coords_reactive <- reactive({
-  #   
-  #   req(similarity_grid_reactive())
-  #   
-  #   get_reference_coords(similarity_grid_reactive(), input$reference_coords) %>% 
-  #     st_transform(crs = "EPSG:4326")
-  #   
-  #   
-  # })
-  
-  # reference_coords_reactive <- reactive({
-  #     
-  #     req(input$reference_coords)
-  #     
-  #     print(input$reference_coords)
-  #     
-  #     reference_coords <- geo_id_index %>% 
-  #         filter(grid_id == input$reference_coords) %>% 
-  #         select(geo_id)
-  #     
-  #     print("reference_coords")
-  #     reference_coords %>% 
-  #         print()
-  #     return(reference_coords)
-  #     
-  # })
-  
-  # similarity_geo_reactive <- reactive({
-  #     
-  #     req(input$reference_coords)
-  #     
-  #     similarity_geo <- similarity_index %>% 
-  #         #join comparison geo_ids to get their grid_id
-  #         left_join(geo_id_index, by = c("geo_id_compare" = "geo_id")) %>% 
-  #         rename(grid_id_compare = grid_id) %>% 
-  #         #filter on the reference geo_id
-  #         filter(geo_id_reference == pull(reference_coords_reactive(), geo_id)) %>% 
-  #         separate(geo_id_compare, into = c("x_compare", "y_compare"), sep = "_")
-  #     
-  #     print("similarity_geo")
-  #     similarity_geo %>% 
-  #         head() %>% 
-  #         print()
-  #     return(similarity_geo)
-  #     
-  # })
-  
-  # reference_coords_updated_reactive <- reactive({
-  #     
-  #     req(input$reference_coords)
-  #     
-  #     reference_coords_updated <- reference_coords_reactive() %>% 
-  #         separate(geo_id, into = c("x", "y"), sep = "_") %>% 
-  #         mutate(across(everything(), as.numeric)) %>% 
-  #         st_as_sf(coords = c("x", "y"), crs = mollweide)
-  #     
-  #     print("reference_coords_updated")
-  #     print(reference_coords_updated)
-  #     return(reference_coords_updated)
-  # })
-  
-  
-  # similarity_geo_updated_reactive <- reactive({
-  #     
-  #     req(input$reference_coords)
-  #     
-  #     similarity_geo_updated <- similarity_geo_reactive() %>% 
-  #         #turn compare x,y into sf coordinates
-  #         mutate(across(.cols = c(x_compare, y_compare), as.numeric)) %>% 
-  #         st_as_sf(coords = c("x_compare", "y_compare"), crs = mollweide) %>%
-  #         #join to get grid_id of reference coords
-  #         left_join(geo_id_index, by = c("geo_id_reference" = "geo_id")) %>% 
-  #         rename(grid_id_reference = grid_id) %>% 
-  #         #reorder variables
-  #         select(geo_id_reference, grid_id_reference, geometry, grid_id_compare, distance)
-  #   
-  #     print("similarity_geo_updated")
-  #     print(similarity_geo_updated)
-  #     return(similarity_geo_updated)
-  # })
-  
-  
-  # similarity_grid_reactive <- reactive({
-  #     
-  #     req(input$reference_coords)
-  #     
-  #     similarity_geo_updated_reactive() %>% 
-  #         #create grid based on compare coords from similarity_geo
-  #         st_make_grid(n = 10, crs = mollweide) %>% 
-  #         st_as_sf() %>%
-  #         #get grid_id from transformed geo_id_index
-  #         st_join(geo_id_index %>% 
-  #                     separate(geo_id, into = c("x", "y"), sep = "_") %>% 
-  #                     mutate(across(.cols = everything(), as.numeric)) %>% 
-  #                     st_as_sf(coords = c("x", "y"), crs = mollweide),
-  #                 join = st_intersects)
-  #     
-  # })
-  
-  output$table <- renderTable({
-    
-    req(input$reference_coords)
-    
-    similarity_grid_reactive() #%>% 
-    #st_join(similarity_geo_updated_reactive(), join = st_intersects)
-    
-  })
-  
   output$map <- renderLeaflet({
     
-    req(input$reference_coords)
-    
-    similarity_grid_distance <- similarity_grid_reactive() %>% 
-      #st_join(similarity_geo_updated_reactive(), join = st_intersects) %>% 
-      st_transform(crs = "EPSG:4326")
-    
-    pal <- colorNumeric(
-      palette = "viridis",
-      domain = similarity_grid_distance$distance)
-    
-    similarity_grid_distance %>% 
-      mutate(grid_opacity = case_when(highlight_grid == "TRUE" ~ .9,
-                                      highlight_grid == "FALSE" ~ .6)) %>% 
+    grid_geo %>% 
       st_transform(crs = "EPSG:4326") %>% 
       leaflet() %>%
       addProviderTiles(providers$Stamen.TonerLite,
                        options = providerTileOptions(noWrap = TRUE
                        )) %>%
-      addPolygons(layerId = ~grid_id_compare,
-                  fillColor = ~pal(distance),
-                  fillOpacity = ~grid_opacity,
+      addPolygons(layerId = ~grid_id,
                   stroke = F,
-                  weight = 1) %>%
-      addLegend("bottomright", pal = pal, values = ~distance,
-                title = "Distance",
-                opacity = 1
-      )
+                  weight = 1)
     
   })
   
+  selected_grid_id_reactive <- reactive({
+    
+    input$map_shape_click$id
+    
+  })
+  
+  #observer for chloropleth
+  observe({
+    
+    req(input$map_shape_click$id)
+    
+    similarity_grid_distance <- similarity_grid_reactive() %>%
+      st_transform(crs = "EPSG:4326") %>% 
+      mutate(grid_opacity = case_when(highlight_grid == "TRUE" ~ .9,
+                                      highlight_grid == "FALSE" ~ .6))
+    
+    pal <- colorNumeric(
+      palette = "viridis",
+      domain = similarity_grid_distance$distance)
+    
+    leafletProxy("map", data = similarity_grid_distance) %>%
+      clearGroup("highlight_shape") %>% 
+      clearGroup("legend") %>% 
+      addPolygons(group = "highlight_shape",
+                  layerId = ~grid_id_compare,
+                  fillColor = ~pal(distance),
+                  fillOpacity = ~grid_opacity,
+                  stroke = F,
+                  weight = 1)
+  })
+  
+  # observe({
+  #   
+  #   req(input$map_shape_click$id)
+  #   
+  #   similarity_grid_distance <- similarity_grid_reactive() %>%
+  #     st_transform(crs = "EPSG:4326") %>% 
+  #     mutate(grid_opacity = case_when(highlight_grid == "TRUE" ~ .9,
+  #                                     highlight_grid == "FALSE" ~ .6))
+  #   
+  #   pal <- colorNumeric(
+  #     palette = "viridis",
+  #     domain = similarity_grid_distance$distance)
+  #   
+  #   leafletProxy("map") %>% 
+  #     clearGroup("legend") %>% 
+  #     addLegend(group = "legend",
+  #               "bottomright", 
+  #               pal = pal, 
+  #               values = ~distance,
+  #               title = "Distance",
+  #               opacity = 1)
+  # })
+  
   observeEvent(input$map_shape_click, { 
-    p <- input$map_shape_click  # typo was on this line
+    p <- input$map_shape_click$id
     print(p)
     
-    output$clicked_grid_id <- renderPrint(p$id)
+    output$clicked_grid_id <- renderPrint(p)
   })
   
 })
