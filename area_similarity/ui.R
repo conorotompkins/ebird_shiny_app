@@ -35,7 +35,8 @@ ui <- shinyUI(fluidPage(
         mainPanel(
             textOutput("text"),
             #tableOutput("table"),
-            plotOutput("map")
+            verbatimTextOutput("clicked_grid_id"),
+            leafletOutput("map")
             
         )
     )
