@@ -39,53 +39,45 @@ similarity_index %>%
   count(geo_id_compare) %>% 
   distinct(n)
 
-similarity_grid_distance <- prep_similarity_index(similarity_index, 72)
+similarity_grid <- prep_similarity_grid(similarity_index, 72) %>% 
+  mutate(highlight_grid = grid_id_reference == grid_id_compare,
+         highlight_grid = as.factor(highlight_grid))
 
-reference_coords <- get_reference_coords(similarity_index, 72)
-
-similarity_grid_distance %>% 
-  #st_join(similarity_geo, join = st_intersects) %>% 
+similarity_grid %>% 
   ggplot() +
-  geom_sf(aes(fill = distance), lwd = 0) +
-  geom_sf(data = pa_shape_moll, alpha = 0) +
-  geom_sf_label(aes(label = grid_id)) +
-  geom_sf(data = reference_coords) +
+  geom_sf(aes(fill = distance, size = highlight_grid), color = "black") +
+  scale_size_manual(values = c(0, .75)) +
   scale_fill_viridis_c(direction = 1) +
   labs(fill = "Distance")
 
-pal <- colorNumeric(
-  palette = "viridis",
-  domain = similarity_grid_distance$distance)
-
-similarity_grid_distance %>% 
+similarity_grid %>% 
   st_transform(crs = "EPSG:4326") %>% 
   mapdeck() %>% 
   add_sf(fill_colour = "distance",
          fill_opacity = .8,
+         stroke_colour = "highlight_grid",
          legend = T,
          auto_highlight = T,
-         tooltip = "grid_id_compare") %>% 
-  add_sf(data = st_transform(reference_coords, crs = "EPSG:4326"))
+         tooltip = "grid_id_compare")
 
-similarity_grid_distance %>% 
+pal <- colorNumeric(
+  palette = "viridis",
+  domain = similarity_grid$distance)
+
+similarity_grid %>% 
+  mutate(grid_opacity = case_when(highlight_grid == "TRUE" ~ 1,
+                                  highlight_grid == "FALSE" ~ .8)) %>% 
   st_transform(crs = "EPSG:4326") %>% 
   leaflet() %>%
   addProviderTiles(providers$Stamen.TonerLite,
-                   options = providerTileOptions(noWrap = TRUE,
-                                                 #minZoom = 9,
-                                                 #maxZoom = 8
+                   options = providerTileOptions(noWrap = TRUE
                    )) %>%
-  # setView(lng = -80.01181092430839, lat = 40.44170119122286, zoom = 10) %>%
-  # setMaxBounds(lng1 = -79.5, lng2 = -80.5, lat1 = 40.1, lat2 = 40.7) %>%
   addPolygons(layerId = ~geometry,
               fillColor = ~pal(distance),
-              fillOpacity = .7,
+              fillOpacity = ~grid_opacity,
               stroke = F,
-              #color = "#FCCF02",
               weight = 1) %>%
   addLegend("bottomright", pal = pal, values = ~distance,
             title = "Distance",
             opacity = 1
   )
-
-
