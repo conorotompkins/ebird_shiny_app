@@ -36,16 +36,25 @@ similarity_index %>%
 
 similarity_index %>% 
   select(grid_id_compare, geometry) %>% 
+  mutate(centroid = st_point_on_surface(geometry),
+         lon = map_dbl(centroid, 1),
+         lat = map_dbl(centroid, 2)) %>% 
   ggplot() +
-  geom_sf()
+  geom_sf() +
+  geom_point(aes(lon, lat))
 
 similarity_index %>% 
   select(grid_id_compare, geometry) %>% 
   rename(grid_id = grid_id_compare) %>% 
+  mutate(centroid = st_point_on_surface(geometry),
+         lon = map_dbl(centroid, 1),
+         lat = map_dbl(centroid, 2)) %>% 
+  select(-centroid) %>% 
   st_write("data/big/grid_shapefile/grid_shapefile.shp")
 
 test <- st_read("data/big/grid_shapefile/grid_shapefile.shp")
 
 test %>% 
   ggplot() +
-  geom_sf()
+  geom_sf() +
+  geom_point(aes(lon, lat))
