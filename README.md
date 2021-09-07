@@ -25,3 +25,4 @@ Features:
     * coast indicators
   * extract probabilities from binary classification
 * Network graph of which species coexist in the same areas
+* Time series cluster bird abundance by species, geography, or species + geography with https://github.com/asardaes/dtwclust
