@@ -2,7 +2,7 @@ library(tidyverse)
 library(rebird)
 library(conflicted)
 
-source("scripts/functions/fun_pull_abundance_data.R")
+source("scripts/functions/pull_species_metric.R")
 
 conflict_prefer("select", "dplyr")
 
@@ -23,7 +23,9 @@ glimpse(species_table)
 
 species_table <- 
   species_table %>% 
-  mutate(abundance_table = map(comName, ~get_abundance_table(target_species_var = .x)))
+  mutate(resolution = "lr",
+         metric = "abundance") %>% 
+  mutate(abundance_table = pmap(list(comName, metric, resolution), ~get_species_metric(..1, ..2, ..3)))
 
 species_table %>%
   select(comName, abundance_table) %>% 

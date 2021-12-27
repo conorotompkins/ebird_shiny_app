@@ -29,13 +29,14 @@ pa_shape_moll %>%
   ggplot() +
   geom_sf()
 
-abunds_table <- 
-  list.files("data/big/species_abundance", full.names = T) %>% 
-  #.[1:10] %>% 
+abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
+  #keep(str_detect(., "Dark-eyed Junco")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
   mutate(comName = basename(comName) %>% file_path_sans_ext,
-         abundance = coalesce(abundance, 0))
+         month = month(date, label = T)) %>% 
+  rename(abundance = value) %>% 
+  mutate(abundance = coalesce(abundance, 0))
 
 abundance_summary <- abunds_table %>%
   group_by(comName, month, x, y) %>% 
@@ -43,70 +44,49 @@ abundance_summary <- abunds_table %>%
   ungroup() %>% 
   mutate(species_id = str_c(comName, sep = "_"),
          geo_id = str_c(x, y, sep = "_")) %>% 
-  st_as_sf(coords = c("x", "y"), crs = mollweide)
+  st_as_sf(coords = c("x", "y"), crs = mollweide) %>% 
+  st_filter(pa_shape_moll, join = st_intersects)
 
 abundance_summary %>% 
   st_drop_geometry() %>% 
   count(comName) %>% 
   distinct(n)
 
+abundance_summary %>% 
+  filter(is.na(comName))
+
+abundance_summary %>% 
+  filter(is.na(month))
+
+abundance_summary %>%
+  filter(comName == "American Tree Sparrow",
+         month == "Jan") %>% 
+  ggplot() +
+  geom_sf(data = pa_shape_moll, color = "red") +
+  geom_sf(aes(color = abundance)) +
+  scale_color_viridis_c()
+
 rm(abunds_table)
 
-grid_geo <- abundance_summary %>% 
-  st_make_grid(n = 10, crs = mollweide) %>% 
-  st_as_sf()
-
-grid_geo %>% 
-  ggplot() +
-  geom_sf(data = pa_shape_moll) +
-  geom_sf(alpha = .3)
+pairwise_dist_f <- function(x, geo_id, comName, abundance){
   
-bird_grid <- grid_geo %>% 
-  st_join(abundance_summary, join = st_intersects) %>% 
-  mutate(centroid = map(geometry, st_point_on_surface)) %>% 
-  group_by(comName, month, centroid) %>% 
-  summarize(n = n(),
-            abundance = mean(abundance, na.rm = T)) %>% 
-  ungroup()
+  pairwise_dist(tbl = x, item = geo_id, feature = comName, value = abundance,
+                diag = T, upper = T)
+  
+}
 
-bird_grid %>% 
-  st_drop_geometry() %>%
-  count(comName) %>% 
-  distinct(n)
-
-rm(abundance_summary)
-
-bird_grid %>%
+similarity_index <- abundance_summary %>% 
   filter(month == "Apr") %>% 
-  ggplot() +
-  geom_sf(aes(fill = abundance), lwd = 0) +
-  geom_sf(data = pa_shape_moll, alpha = 0, lwd = 1, color = "black") +
-  facet_wrap(~comName) +
-  scale_fill_viridis_c()
-
-bird_grid <- bird_grid %>% 
-  select(comName, month, centroid, abundance) %>% 
-  st_drop_geometry() %>% 
-  mutate(x = map_dbl(centroid, 1),
-         y = map_dbl(centroid, 2))
-
-bird_grid %>%
-  count(x, y) %>%
-  distinct(n)
-
-bird_grid %>%
-  count(x, y) %>% 
-  ggplot() +
-  geom_sf(data = pa_shape_moll) +
-  geom_point(aes(x, y)) 
-
-similarity_index <- bird_grid %>% 
-  mutate(geo_id = str_c(x, y, sep = "_"),
-         species_id = str_c(comName, month, sep = "_")) %>% 
-  select(geo_id, species_id, abundance) %>% 
-  pairwise_dist(geo_id, species_id, abundance, diag = T, upper = T) %>% 
+  select(geo_id, comName, abundance) %>% 
+  #for future development
+  #group_nest(month) %>% 
+  # mutate(dist_data = pmap(list(geo_id, comName, abundance),
+  #                         ~pairwise_dist(data, ..1, ..2, ..3, diag = T, upper = T)))
+  pairwise_dist(geo_id, comName, abundance, diag = T, upper = T) %>% 
   rename(geo_id_1 = item1,
-         geo_id_2 = item2)
+         geo_id_2 = item2) %>% 
+  mutate(month = "Apr") %>% 
+  select(month, everything())
 
 similarity_index %>% 
   count(geo_id_1) %>% 

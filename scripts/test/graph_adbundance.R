@@ -8,12 +8,13 @@ library(tools)
 
 options(tigris_use_cache = TRUE)
 
-abunds_table <- 
-  list.files("data/big/species_abundance", full.names = T) %>% 
-  keep(str_detect(., "Warbler")) %>% 
+abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
+  #keep(str_detect(., "Dark-eyed Junco")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
-  mutate(comName = basename(comName) %>% file_path_sans_ext)
+  mutate(comName = basename(comName) %>% file_path_sans_ext,
+         month = month(date, label = T)) %>% 
+  rename(abundance = value)
 
 abunds_table %>% 
   distinct(comName)
@@ -111,11 +112,12 @@ mean_abunds_table <- abunds_table %>%
   ungroup()
 
 polar_frequency_plot <- mean_abunds_table %>% 
+  mutate(comName = fct_reorder(comName, mean_abundance, .fun = mean, .desc = T)) %>% 
   ggplot(aes(x = month, y = mean_abundance, fill = comName, color = comName, group = comName)) +
   geom_polygon(alpha = .5) +
   coord_polar(theta = "x") +
-  guides(fill = "none",
-         color = "none") +
+  # guides(fill = "none",
+  #        color = "none") +
   labs(title = "Species Abundance",
        subtitle = "2018 Pennsylvania",
        x = NULL,

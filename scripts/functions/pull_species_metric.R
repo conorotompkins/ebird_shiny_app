@@ -73,6 +73,8 @@ get_species_metric <- function(target_species_var, metric, target_resoluion){
   
   tic()
   species_metric_cropped <- species_metric %>% 
+    #consider cropping by shape instead of bbox
+    #crop(pa_shape) %>% 
     crop(pa_bbox) %>% 
     projectRaster(crs = mollweide, method = "ngb")
   toc()
