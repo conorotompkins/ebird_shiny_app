@@ -1,6 +1,7 @@
 library(tidyverse)
 library(vroom)
 library(tools)
+library(lubridate)
 library(tigris)
 library(sf)
 library(leaflet)
@@ -9,23 +10,41 @@ library(mapview)
 
 options(tigris_use_cache = TRUE)
 
-abunds_table <- 
-  list.files("data/big/species_abundance", full.names = T) %>% 
-  keep(str_detect(., "American Redstart")) %>% 
+abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
+  keep(str_detect(., "Dark-eyed Junco")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
-  mutate(comName = basename(comName) %>% file_path_sans_ext,)
+  mutate(comName = basename(comName) %>% file_path_sans_ext,
+         month = month(date, label = T)) %>% 
+  rename(abundance = value)
 
-redstart_peak <- abunds_table %>% 
+abunds_table %>% 
+  count(month) %>% 
+  distinct(n)
+
+abunds_table %>% 
+  count(x, y) %>% 
+  distinct(n)
+
+abunds_table %>% 
+  count(month, x, y) %>% 
+  filter(n == 5) %>% 
+  distinct(month)
+
+peak_month <- abunds_table %>% 
   group_by(comName, month) %>% 
-  mutate(abundance_month = mean(abundance, na.rm = T)) %>% 
-  ungroup() %>% 
-  filter(abundance_month == max(abundance_month))
-
-redstart_peak <- redstart_peak %>% 
-  group_by(comName, month, x, y) %>% 
   summarize(abundance = mean(abundance, na.rm = T)) %>% 
-  ungroup()
+  arrange(desc(abundance)) %>% 
+  slice(1) %>% 
+  pull(month)
+
+species_peak <- abunds_table %>% 
+  filter(month == peak_month) %>% 
+  group_by(comName, x, y, month) %>% 
+  summarize(abundance = mean(abundance, na.rm = T))
+
+species_peak %>% 
+  count(month)
 
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
@@ -49,26 +68,27 @@ pa_shape_moll %>%
   ggplot() +
   geom_sf()
 
-redstart_peak %>% 
+species_peak %>% 
   ggplot() +
   geom_raster(aes(x, y, fill = abundance)) +
-  geom_sf(data = pa_shape_moll, alpha = 0) +
+  geom_sf(data = pa_shape_moll, alpha = 0, color = "black") +
+  facet_wrap(~month) +
   scale_fill_viridis_c()
 
-redstart_peak <- redstart_peak %>% 
+species_peak <- species_peak %>% 
   st_as_sf(coords = c("x", "y"), crs = mollweide) %>% 
   st_transform(crs = "EPSG:4326")
 
-st_crs(redstart_peak)
+st_crs(species_peak)
 
-redstart_peak %>% 
+species_peak %>% 
   ggplot(aes(color = abundance)) +
   geom_sf() +
   scale_color_viridis_c()
 
 mapdeck(style = mapdeck_style('dark'), pitch = 0) %>% 
   add_screengrid(
-    data = redstart_peak
+    data = species_peak
     , lat = "y"
     , lon = "x"
     , weight = "abundance",
@@ -79,52 +99,49 @@ mapdeck(style = mapdeck_style('dark'), pitch = 0) %>%
 
 mapdeck(style = mapdeck_style('dark'), pitch = 0) %>% 
   add_grid(
-    data = redstart_peak,
+    data = species_peak,
     lat = "y",
     lon = "x",
     colour = "abundance",
     #colour_function = "sum",
-    cell_size = 1000,
+    cell_size = 10^4,
     #opacity = 0.8,
     colour_range = colourvalues::colour_values(1:6, palette = "plasma")
   )
 
+species_peak %>% 
+  mutate(x = map_dbl(geometry, 1),
+         y = map_dbl(geometry, 2)) %>% 
+  mutate(abundance = coalesce(abundance, 0)) %>% 
+  ggplot() +
+  #geom_point(aes(x, y)) +
+  geom_raster(aes(x, y, fill = abundance))
 
-grid_geo <- redstart_peak %>% 
-  st_make_grid(cellsize = c(.4, .4)) %>% 
-  st_as_sf()
-
-redstart_grid <- grid_geo %>% 
-  st_join(redstart_peak, join = st_intersects) %>% 
-  mutate(centroid = map(geometry, st_point_on_surface)) %>% 
-  group_by(centroid) %>% 
-  summarize(n = n(),
-            abundance = mean(abundance, na.rm = T))
-
-redstart_grid %>%           
+species_peak %>%           
   ggplot() +
   geom_sf(aes(fill = abundance), lwd = 0) +
-  geom_sf(data = pa_shape_moll, alpha = 0) +
+  geom_sf(data = pa_shape_moll, alpha = 0, color = "black") +
   scale_fill_viridis_c()
 
 mapdeck() %>% 
-  add_sf(redstart_grid,
+  add_sf(species_peak,
          fill_colour = "abundance",
          fill_opacity = .8,
          auto_highlight = T,
          tooltip = "comName")
 
-mapview(redstart_grid,
+mapview(species_peak,
         zcol = "abundance",
         alpha.regions = 0.8)
 
 pal <- colorNumeric(
   palette = "viridis",
-  domain = redstart_grid$abundance)
+  domain = species_peak$abundance)
 
-leaflet(redstart_grid) %>% 
+leaflet(species_peak) %>% 
   addTiles() %>% 
-  addPolygons(color = ~pal(abundance), opacity = 0, fillOpacity = .5) %>% 
+  addCircles(color = ~pal(abundance), radius = 10^4) %>% 
+  #addPolygons(color = ~pal(abundance), opacity = 0, fillOpacity = .5) %>% 
   addLegend("bottomright", pal = pal, values = ~abundance,
             title = "Abundance",
             opacity = 1
