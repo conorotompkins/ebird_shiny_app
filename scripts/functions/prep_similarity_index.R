@@ -1,75 +1,67 @@
 #function to prepare similarity index data for graphing
 
-prep_similarity_grid <- function(similarity_index_data, select_grid_id){
+prep_similarity_grid <- function(similarity_index_data, select_geo_index){
   
-  similarity_grid <- similarity_index_data %>% 
+  #reference is the geo_id of interest
+  #compare are the geo_ids we are comparing to the reference_geo_id
+  similarity_index <- similarity_index %>% 
     rename(geo_id_reference = geo_id_1,
-           geo_id_compare = geo_id_2) 
+           geo_id_compare = geo_id_2)
   
-  #create IDs for each geo_id
-  geo_id_index <- similarity_grid %>% 
+  #create an index for each geo_id
+  geo_id_index <- similarity_index %>% 
     select(geo_id_reference, geo_id_compare) %>% 
     pivot_longer(cols = everything(),
                  names_to = "type", values_to = "geo_id") %>% 
     arrange(geo_id) %>% 
     distinct(geo_id) %>% 
     separate(geo_id, into = c("x", "y"), sep = "_", remove = F) %>% 
-    mutate(across(.cols = c(x, y), as.numeric)) %>% 
-    arrange(x, y) %>% 
-    mutate(grid_id = row_number())
+    mutate(x_num = x,
+           y_num = y) %>% 
+    mutate(across(.cols = c(x_num, y_num), as.numeric)) %>% 
+    arrange(x_num, y_num) %>% 
+    mutate(geo_index = row_number())
   
-  # geo_id_index %>% 
-  #   ggplot(aes(x, y, label = grid_id)) +
-  #   geom_label()
-  
+  #drop x and y columns
   geo_id_index <- geo_id_index %>% 
-    select(-c(x, y))
-  
-  #choose one grid_id to test
+    select(-c(x_num, y_num, x, y))
+
   reference_coords <- geo_id_index %>% 
-    filter(grid_id == select_grid_id) %>% 
+    filter(geo_index == select_geo_index) %>% 
     select(geo_id)
   
-  similarity_geo <- similarity_grid%>% 
-    #join comparison geo_ids to get their grid_id
+  similarity_geo <- similarity_index %>% 
+    #join comparison geo_ids to get their geo_index
     left_join(geo_id_index, by = c("geo_id_compare" = "geo_id")) %>% 
-    rename(grid_id_compare = grid_id) %>% 
-    #filter on the reference geo_id
+    rename(geo_index_compare = geo_index) %>% 
+    #filter on the select_geo_index
     filter(geo_id_reference == pull(reference_coords)) %>% 
+    #separe geo_id_compare into x and y cols
     separate(geo_id_compare, into = c("x_compare", "y_compare"), sep = "_")
-  
-  similarity_geo
-  
+
   #turn reference x,y into sf coordinates
   reference_coords <- reference_coords %>% 
     separate(geo_id, into = c("x", "y"), sep = "_") %>% 
     mutate(across(everything(), as.numeric)) %>% 
     st_as_sf(coords = c("x", "y"), crs = mollweide)
-  
+
   similarity_geo <- similarity_geo %>% 
     #turn compare x,y into sf coordinates
     mutate(across(.cols = c(x_compare, y_compare), as.numeric)) %>% 
     st_as_sf(coords = c("x_compare", "y_compare"), crs = mollweide) %>%
-    #join to get grid_id of reference coords
+    #join to get geo_index of reference coords
     left_join(geo_id_index, by = c("geo_id_reference" = "geo_id")) %>% 
-    rename(grid_id_reference = grid_id) %>% 
+    rename(geo_index_reference = geo_index) %>% 
     #reorder variables
-    select(geo_id_reference, grid_id_reference, geometry, grid_id_compare, distance)
+    select(month, geo_id_reference, geo_index_reference, geometry, geo_index_compare, distance)
   
-  similarity_grid <- similarity_geo %>% 
-    #create grid based on compare coords from similarity_geo
-    st_make_grid(n = 10, crs = mollweide) %>% 
-    st_as_sf()
+  similarity_geo <- similarity_geo %>% 
+    #calculate x,y from coordinate
+    mutate(x = map_dbl(geometry, 1),
+           y = map_dbl(geometry, 2))
   
-  similarity_grid <- similarity_grid %>% 
-    st_join(geo_id_index %>% 
-              separate(geo_id, into = c("x", "y"), sep = "_") %>% 
-              mutate(across(.cols = everything(), as.numeric)) %>% 
-              st_as_sf(coords = c("x", "y"), crs = mollweide),
-            join = st_intersects)
+  similarity_geo <- similarity_geo %>% 
+    mutate(highlight_grid = geo_index_compare == select_geo_index)
   
-  similarity_grid_distance <- similarity_grid %>% 
-    st_join(similarity_geo, join = st_intersects)
-  
-  return(similarity_grid_distance)
+  return(similarity_geo)
 }
