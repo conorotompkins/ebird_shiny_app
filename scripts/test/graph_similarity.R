@@ -28,48 +28,53 @@ pa_shape_moll <- pa_shape %>%
 #load similarity index data
 similarity_index <- read_csv("data/big/similarity_index.csv")
 
-select_grid_id <- 26
+#check that each combination of geo_id_1, geo_id_2 occurs once
+similarity_index %>% 
+  count(geo_id_1, geo_id_2, sort = T) %>% 
+  distinct(n)
 
-#check that each geo_id occurs 99 times
-# similarity_grid <- prep_similarity_grid(similarity_index, 30) %>% 
-#   mutate(highlight_grid = grid_id_reference == grid_id_compare,
-#          highlight_grid = as.factor(highlight_grid))
-
-
-similarity_grid <- similarity_index %>% 
+#reference is the geo_id of interest
+#compare are the geo_ids we are comparing to the reference_geo_id
+similarity_index <- similarity_index %>% 
   rename(geo_id_reference = geo_id_1,
-         geo_id_compare = geo_id_2) 
+         geo_id_compare = geo_id_2)
 
-#create IDs for each geo_id
-geo_id_index <- similarity_grid %>% 
+#create an index for each geo_id
+geo_id_index <- similarity_index %>% 
   select(geo_id_reference, geo_id_compare) %>% 
   pivot_longer(cols = everything(),
                names_to = "type", values_to = "geo_id") %>% 
   arrange(geo_id) %>% 
   distinct(geo_id) %>% 
   separate(geo_id, into = c("x", "y"), sep = "_", remove = F) %>% 
-  mutate(across(.cols = c(x, y), as.numeric)) %>% 
-  arrange(x, y) %>% 
-  mutate(grid_id = row_number())
+  mutate(x_num = x,
+         y_num = y) %>% 
+  mutate(across(.cols = c(x_num, y_num), as.numeric)) %>% 
+  arrange(x_num, y_num) %>% 
+  mutate(geo_index = row_number())
 
 geo_id_index %>%
-  ggplot(aes(x, y, label = grid_id)) +
+  ggplot(aes(x_num, y_num, label = geo_index)) +
   geom_label()
 
+#drop x and y columns
 geo_id_index <- geo_id_index %>% 
-  select(-c(x, y))
+  select(-c(x_num, y_num, x, y))
 
-#choose one grid_id to test
+#choose one geo_index to test
+select_geo_index <- 26
+
 reference_coords <- geo_id_index %>% 
-  filter(grid_id == select_grid_id) %>% 
+  filter(geo_index == select_geo_index) %>% 
   select(geo_id)
 
-similarity_geo <- similarity_grid %>% 
-  #join comparison geo_ids to get their grid_id
+similarity_geo <- similarity_index %>% 
+  #join comparison geo_ids to get their geo_index
   left_join(geo_id_index, by = c("geo_id_compare" = "geo_id")) %>% 
-  rename(grid_id_compare = grid_id) %>% 
-  #filter on the reference geo_id
+  rename(geo_index_compare = geo_index) %>% 
+  #filter on the select_geo_index
   filter(geo_id_reference == pull(reference_coords)) %>% 
+  #separe geo_id_compare into x and y cols
   separate(geo_id_compare, into = c("x_compare", "y_compare"), sep = "_")
 
 similarity_geo
@@ -90,25 +95,25 @@ similarity_geo <- similarity_geo %>%
   #turn compare x,y into sf coordinates
   mutate(across(.cols = c(x_compare, y_compare), as.numeric)) %>% 
   st_as_sf(coords = c("x_compare", "y_compare"), crs = mollweide) %>%
-  #join to get grid_id of reference coords
+  #join to get geo_index of reference coords
   left_join(geo_id_index, by = c("geo_id_reference" = "geo_id")) %>% 
-  rename(grid_id_reference = grid_id) %>% 
+  rename(geo_index_reference = geo_index) %>% 
   #reorder variables
-  select(geo_id_reference, grid_id_reference, geometry, grid_id_compare, distance)
+  select(month, geo_id_reference, geo_index_reference, geometry, geo_index_compare, distance)
 
 similarity_geo <- similarity_geo %>% 
-  mutate(centroid = st_point_on_surface(geometry)) %>% 
-  mutate(x = map_dbl(centroid, 1),
-         y = map_dbl(centroid, 2))
+  #calculate x,y from coordinate
+  mutate(x = map_dbl(geometry, 1),
+         y = map_dbl(geometry, 2))
 
 similarity_geo <- similarity_geo %>% 
-  mutate(highlight_grid = grid_id_compare == select_grid_id)
+  mutate(highlight_grid = geo_index_compare == select_geo_index)
 
 similarity_geo %>% 
   filter(highlight_grid == T)
 
 similarity_geo %>% 
-  count(grid_id_reference) %>% 
+  count(geo_id_reference) %>% 
   distinct(n)
 
 similarity_geo %>% 
@@ -118,12 +123,12 @@ similarity_geo %>%
 
 similarity_geo %>% 
   st_drop_geometry() %>% 
-  count(grid_id_reference) %>% 
+  count(geo_id_reference) %>% 
   distinct(n)
 
 similarity_geo %>% 
   st_drop_geometry() %>% 
-  count(grid_id_compare) %>% 
+  count(geo_index_compare) %>% 
   distinct(n)
 
 similarity_geo %>% 
