@@ -12,12 +12,13 @@ pa_songbirds <- ebird_tax %>%
   filter(order == "Passeriformes") %>% 
   semi_join(ebirdregionspecies("US-PA-003"), by = "speciesCode")
 
-pa_songbirds %>% 
-  count(familyComName, sort = T)
+target_birds <- pa_songbirds %>% 
+  count(familyComName, sort = T) %>% 
+  slice(1:2)
 
 species_table <- pa_songbirds %>% 
   select(sciName, comName, speciesCode, order, familyComName, familySciName) %>% 
-  filter(familyComName == "New World Sparrows")
+  semi_join(target_birds, by = c("familyComName" = "familyComName"))
 
 glimpse(species_table)
 
