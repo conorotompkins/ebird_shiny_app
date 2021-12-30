@@ -1,10 +1,11 @@
 #function to prepare similarity index data for graphing
+mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
-prep_similarity_grid <- function(similarity_index_data, select_geo_index){
+prep_similarity_index <- function(similarity_index_data, select_geo_index = 16){
   
   #reference is the geo_id of interest
   #compare are the geo_ids we are comparing to the reference_geo_id
-  similarity_index <- similarity_index %>% 
+  similarity_index <- similarity_index_data %>% 
     rename(geo_id_reference = geo_id_1,
            geo_id_compare = geo_id_2)
   
@@ -60,8 +61,8 @@ prep_similarity_grid <- function(similarity_index_data, select_geo_index){
     mutate(x = map_dbl(geometry, 1),
            y = map_dbl(geometry, 2))
   
-  similarity_geo <- similarity_geo %>% 
-    mutate(highlight_grid = geo_index_compare == select_geo_index)
+  #similarity_geo <- similarity_geo# %>% 
+    #mutate(highlight_grid = geo_index_compare == select_geo_index)
   
   return(similarity_geo)
 }
