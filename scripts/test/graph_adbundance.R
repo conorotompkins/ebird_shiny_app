@@ -9,12 +9,13 @@ library(tools)
 options(tigris_use_cache = TRUE)
 
 abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
-  #keep(str_detect(., "Dark-eyed Junco")) %>% 
+  keep(str_detect(., "Cape May Warbler|Song Sparrow")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
   mutate(comName = basename(comName) %>% file_path_sans_ext,
          month = month(date, label = T)) %>% 
-  rename(abundance = value)
+  rename(abundance = value) %>% 
+  filter(comName %in% c("Cape May Warbler", "Song Sparrow"))
 
 abunds_table %>% 
   distinct(comName)
@@ -23,19 +24,28 @@ mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
 original_raster_crs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +no_defs"
 
-pa_shape <- states(cb = T) %>% 
-  filter(NAME == "Pennsylvania") %>% 
-  st_transform(crs = original_raster_crs)
+region_str <- abunds_table %>% 
+  distinct(region) %>%
+  pull()
 
-pa_shape %>% 
+region_shape <- states(cb = T) %>% 
+  filter(str_detect(region_str, NAME)) %>% 
+  st_transform(crs = original_raster_crs) %>% 
+  summarize()
+
+region_shape %>% 
   ggplot() +
   geom_sf()
 
-pa_bbox <- pa_shape %>% 
+region_bbox <- region_shape %>% 
   sf::st_bbox(crs = original_raster_crs)
 
-pa_shape_moll <- pa_shape %>% 
+region_shape_moll <- region_shape %>% 
   st_transform(mollweide)
+
+region_shape_moll %>% 
+  ggplot() +
+  geom_sf()
 
 #find month with highest mean abundance per species, map that
 peak_abundance_map_data <- abunds_table %>% 
@@ -55,12 +65,14 @@ peak_abundance_map_data <- peak_abundance_map_data %>%
 peak_abundance_map_plot <- peak_abundance_map_data %>% 
   ggplot() +
   geom_raster(aes(x, y, fill = mean_abundance_loc)) +
-  geom_sf(data = pa_shape_moll, alpha = 0, color = "black") +
+  geom_sf(data = region_shape_moll, alpha = 0, color = "black") +
   scale_fill_viridis_c() +
   facet_wrap(comName~str_c("Peaks in: ", month)) +
   labs(fill = "Abundance") +
   theme_void() +
   theme(plot.background = element_rect(fill = "white"))
+
+peak_abundance_map_plot
 
 peak_abundance_map_plot %>% 
   ggsave(filename = "output/peak_abundance_map_plot.png", 
@@ -74,6 +86,8 @@ abundance_histogram <- abunds_table %>%
   guides(fill = "none") +
   theme_ipsum() +
   theme(plot.background = element_rect(fill = "white"))
+
+abundance_histogram
 
 abundance_histogram %>% 
   ggsave(filename = "output/abundance_histogram.png",
@@ -100,6 +114,8 @@ location_tile_heatmap_plot <- abunds_table %>%
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
 
+location_tile_heatmap_plot
+
 location_tile_heatmap_plot %>% 
   ggsave(filename = "output/location_tile_heatmap_plot.png",
          width = 15,
@@ -125,6 +141,8 @@ polar_frequency_plot <- mean_abunds_table %>%
        fill = "Species",
        color = "Species") +
   theme_bw()
+
+polar_frequency_plot
 
 polar_frequency_plot %>% 
   ggsave(filename = "output/polar_frequency_plot.png",

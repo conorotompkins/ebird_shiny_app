@@ -15,22 +15,29 @@ mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
 original_raster_crs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +no_defs"
 
-pa_shape <- states(cb = T) %>% 
-  filter(NAME == "Pennsylvania") %>% 
-  st_transform(crs = original_raster_crs)
+region_str <- "Pennsylvania, New Jersey"
 
-pa_bbox <- pa_shape %>% 
+region_shape <- states(cb = T) %>% 
+  filter(str_detect(region_str, NAME)) %>% 
+  st_transform(crs = original_raster_crs) %>% 
+  summarize()
+
+region_bbox <- region_shape %>% 
   sf::st_bbox(crs = original_raster_crs)
 
-pa_shape_moll <- pa_shape %>% 
+region_shape_moll <- region_shape %>% 
   st_transform(mollweide)
+
+region_shape_moll %>% 
+  ggplot() +
+  geom_sf()
 
 #load similarity index data
 similarity_index <- read_csv("data/big/similarity_index.csv")
 
 #check that each combination of geo_id_1, geo_id_2 occurs once
 similarity_index %>% 
-  count(geo_id_1, geo_id_2, sort = T) %>% 
+  count(geo_id_1, geo_id_2) %>% 
   distinct(n)
 
 #reference is the geo_id of interest
@@ -49,20 +56,23 @@ geo_id_index <- similarity_index %>%
   separate(geo_id, into = c("x", "y"), sep = "_", remove = F) %>% 
   mutate(x_num = x,
          y_num = y) %>% 
-  mutate(across(.cols = c(x_num, y_num), as.numeric)) %>% 
+  mutate(across(.cols = c(x_num, y_num), parse_number)) %>% 
   arrange(x_num, y_num) %>% 
   mutate(geo_index = row_number())
 
-geo_id_index %>%
-  ggplot(aes(x_num, y_num, label = geo_index)) +
-  geom_label()
+
+geo_id_index %>% 
+  ggplot() +
+  geom_point(aes(x_num, y_num), alpha = .3) +
+  geom_text(aes(x_num, y_num, label = geo_index)) +
+  geom_sf(data = region_shape_moll, alpha = 0)
 
 #drop x and y columns
 geo_id_index <- geo_id_index %>% 
   select(-c(x_num, y_num, x, y))
 
 #choose one geo_index to test
-select_geo_index <- 26
+select_geo_index <- 16
 
 reference_coords <- geo_id_index %>% 
   filter(geo_index == select_geo_index) %>% 
@@ -113,8 +123,8 @@ similarity_geo %>%
   filter(highlight_grid == T)
 
 similarity_geo %>% 
-  count(geo_id_reference) %>% 
-  distinct(n)
+  ggplot(aes(x, y)) +
+  geom_tile()
 
 similarity_geo %>% 
   ggplot(aes(x, y)) +
@@ -122,19 +132,9 @@ similarity_geo %>%
   scale_fill_viridis_c()
 
 similarity_geo %>% 
-  st_drop_geometry() %>% 
-  count(geo_id_reference) %>% 
-  distinct(n)
-
-similarity_geo %>% 
-  st_drop_geometry() %>% 
-  count(geo_index_compare) %>% 
-  distinct(n)
-
-similarity_geo %>% 
   ggplot() +
   geom_tile(aes(x, y, fill =  distance)) +
-  geom_sf(data = pa_shape_moll, alpha = 0) +
+  geom_sf(data = region_shape_moll, alpha = 0) +
   geom_point(data = filter(similarity_geo, highlight_grid == T),
              aes(x, y), 
              color = "white") +
