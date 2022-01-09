@@ -109,10 +109,46 @@ coords <- structure(list(x = c(794090.315618213, 794090.315618213, 820790.315618
          4842208.24422306, 4868908.24422306, 4895608.24422306, 4815508.24422306
 )), class = c("tbl_df", "tbl", "data.frame"), row.names = c(NA, 
                                                             -199L))
-
+#current output
 coords %>% 
   sf::st_as_sf(coords = c("x", "y"), crs = mollweide) %>% 
   ggplot() +
   geom_sf()
 
-reprex::reprex()
+#preferably polygons will look like this
+coords %>% 
+  ggplot(aes(x, y)) +
+  geom_tile(fill = "white", color = "black")
+
+
+sfd <- coords %>% 
+  sf::st_as_sf(coords = c("x", "y"), crs = mollweide)
+
+bbox = st_bbox(sfd) %>% st_as_sfc() %>% st_buffer(26700/2)
+grid = bbox %>% 
+  st_make_grid(n=c(22, 14))
+
+grid_geo <- bbox %>% 
+  st_make_grid(n=c(22, 14))
+
+grid = grid[sfd] 
+
+
+grid %>% 
+  st_sf() %>% 
+  ggplot() +
+  geom_sf() +
+  geom_point(data = coords,
+             aes(x, y))
+
+source("scripts/functions/recreate_tile.R")
+
+coords %>% 
+  recreate_tile() %>% 
+  bind_cols(coords) %>% 
+  ggplot() +
+  geom_sf() +
+  geom_point(aes(x, y))
+
+
+

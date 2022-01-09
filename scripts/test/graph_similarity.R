@@ -9,7 +9,7 @@ set.seed(1234)
 options(tigris_use_cache = TRUE)
 
 source("scripts/functions/prep_similarity_index.R")
-source("scripts/functions/get_reference_coords.R")
+source("scripts/functions/recreate_tile.R")
 
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
@@ -59,7 +59,6 @@ geo_id_index <- similarity_index %>%
   mutate(across(.cols = c(x_num, y_num), parse_number)) %>% 
   arrange(x_num, y_num) %>% 
   mutate(geo_index = row_number())
-
 
 geo_id_index %>% 
   ggplot() +
@@ -123,25 +122,41 @@ similarity_geo %>%
   filter(highlight_grid == T)
 
 similarity_geo %>% 
-  ggplot(aes(x, y)) +
-  geom_tile()
+  st_drop_geometry() %>% 
+  select(x, y) %>% 
+  recreate_tile() %>% 
+  bind_cols(similarity_geo %>% 
+              st_drop_geometry() %>% 
+              select(x, y)) %>% 
+  ggplot() +
+  geom_sf() +
+  geom_point(aes(x, y))
 
-similarity_geo %>% 
+similarity_geo_tile <- similarity_geo %>% 
+  st_drop_geometry() %>% 
+  select(x, y) %>% 
+  recreate_tile() %>% 
+  bind_cols(similarity_geo %>% 
+              st_drop_geometry() %>% 
+              select(geo_index_reference, x, y, distance, highlight_grid))
+
+similarity_geo_tile %>% 
   ggplot(aes(x, y)) +
   geom_raster(aes(fill = distance)) +
   scale_fill_viridis_c()
 
-similarity_geo %>% 
+similarity_geo_tile %>% 
   ggplot() +
-  geom_tile(aes(x, y, fill =  distance)) +
+  geom_sf(aes(fill = distance)) +
   geom_sf(data = region_shape_moll, alpha = 0) +
-  geom_point(data = filter(similarity_geo, highlight_grid == T),
+  geom_point(data = filter(similarity_geo_tile, highlight_grid == T),
              aes(x, y), 
              color = "white") +
   scale_fill_viridis_c(direction = 1) +
   labs(fill = "Distance")
 
-similarity_geo %>% 
+#doesnt work with leaflet crs
+similarity_geo_tile %>% 
   st_transform(crs = "EPSG:4326") %>% 
   mapdeck() %>% 
   add_sf(fill_colour = "distance",
@@ -149,26 +164,27 @@ similarity_geo %>%
          stroke_colour = "highlight_grid",
          legend = T,
          auto_highlight = T,
-         tooltip = "grid_id_compare",
-         radius = 10^4)
+         tooltip = "grid_id_compare"#,
+         #radius = 10^4
+  )
 
 pal <- colorNumeric(
   palette = "viridis",
-  domain = similarity_geo$distance)
+  domain = similarity_geo_tile$distance)
 
-similarity_geo %>% 
-  mutate(grid_opacity = case_when(highlight_grid == "TRUE" ~ .9,
-                                  highlight_grid == "FALSE" ~ .6)) %>%
+similarity_geo_tile %>% 
+  mutate(grid_opacity = case_when(highlight_grid == T ~ 0,
+                                  highlight_grid == F ~ .99)) %>%
   st_transform(crs = "EPSG:4326") %>% 
   leaflet() %>%
   addProviderTiles(providers$Stamen.TonerLite,
                    options = providerTileOptions(noWrap = TRUE)) %>%
-  addCircles(layerId = ~geometry,
-             fillColor = ~pal(distance),
-             fillOpacity = ~grid_opacity,
-             stroke = F,
-             weight = 1,
-             radius = 10^4) %>%
+  addPolygons(layerId = ~geometry,
+              fillColor = ~pal(distance),
+              fillOpacity = ~grid_opacity,
+              stroke = F,
+              weight = 1,
+              popup = ~geo_id_index) %>%
   addLegend("bottomright", pal = pal, values = ~distance,
             title = "Distance",
             opacity = 1)
