@@ -4,11 +4,11 @@ library(tidyverse)
 
 library(sf)
 library(tigris)
-library(leaflet)
 
 options(tigris_use_cache = TRUE)
 
 source("scripts/functions/prep_similarity_index.R")
+#source("scripts/functions/recreate_tile.R")
 
 # file.copy(from = "data/big/similarity_index.csv",
 #           to = "area_similarity/data")
@@ -17,8 +17,19 @@ source("scripts/functions/prep_similarity_index.R")
 #load similarity index data
 similarity_index <- read_csv("data/big/similarity_index.csv")
 
+# similarity_geo_tile <- st_read("data/similarity_geo_tile/similarity_geo_tile.shp") %>% 
+#   set_names(c("x", "y", "geo_index_reference", "geo_index_compare", "distance", "highlight_grid", "geometry"))
+
 base_map_data <- similarity_index %>% 
   prep_similarity_index()
+
+base_map_data %>% 
+  ggplot() +
+  geom_sf(aes(fill = distance))
+
+base_map_data %>% 
+  ggplot() +
+  geom_text(aes(x, y, label = geo_index_compare))
 
 #create pa shape
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
@@ -40,103 +51,42 @@ pa_shape_moll <- pa_shape %>%
 # Define server logic required to draw a histogram
 server <- shinyServer(function(input, output, session) {
   
-  similarity_grid_reactive <- reactive({
-    
-    req(input$map_shape_click$id)
-    
-    prep_similarity_index(similarity_index_data = similarity_index,
-                          selected_grid_id_reactive()) %>% 
-      mutate(highlight_area = geo_index_reference == geo_index_compare,
-             highlight_area = as.factor(highlight_area))
-    
-  })
-  
-  output$map <- renderLeaflet({
-    
-    #req(similarity_grid_reactive())
-    
-    base_map_data %>% 
-      st_transform(crs = "EPSG:4326") %>% 
-      leaflet() %>%
-      addProviderTiles(providers$Stamen.TonerLite,
-                       options = providerTileOptions(noWrap = TRUE
-                       )) %>%
-      addCircles(layerId = ~geo_index_compare,
-                 stroke = F,
-                 weight = 1,
-                 radius = 10^4)
-    
-  })
-  
   selected_grid_id_reactive <- reactive({
     
-    input$map_shape_click$id
+    input$geo_index_compare_input
     
   })
   
-  #observer for chloropleth
-  observe({
+  similarity_grid_reactive <- reactive({
     
-    req(input$map_shape_click$id)
-    
-    similarity_grid_distance <- similarity_grid_reactive() %>%
-      st_transform(crs = "EPSG:4326") %>%
-      mutate(grid_opacity = case_when(highlight_area == "TRUE" ~ .9,
-                                      highlight_area == "FALSE" ~ .6))
-    
-    pal <- colorNumeric(
-      palette = "viridis",
-      domain = similarity_grid_distance$distance)
-    
-    leafletProxy("map", data = similarity_grid_distance) %>%
-      clearGroup("highlight_shape") %>%
-      addCircles(group = "highlight_shape",
-                 layerId = ~geo_index_compare,
-                 fillColor = ~pal(distance),
-                 fillOpacity = ~grid_opacity,
-                 stroke = F,
-                 weight = 1, 
-                 radius = 10^4)
+    similarity_index %>%
+      prep_similarity_index(selected_grid_id_reactive())
     
   })
   
-  observe({
+  output$clicked_grid_id <- renderPrint({
     
-    req(input$map_shape_click$id)
-    
-    similarity_grid_distance <- similarity_grid_reactive() %>%
-      st_transform(crs = "EPSG:4326") %>%
-      mutate(grid_opacity = case_when(highlight_area == "TRUE" ~ .9,
-                                      highlight_area == "FALSE" ~ .6))
-    
-    pal <- colorNumeric(
-      palette = "viridis",
-      domain = similarity_grid_distance$distance)
-    
-    # Remove any existing legend, and only if the legend is
-    # enabled, create a new one.
-    proxy <- leafletProxy("map", data = similarity_grid_distance)
-    
-    proxy %>% clearControls()
-    
-    proxy %>% 
-      addLegend(pal = pal, 
-                values = ~distance, 
-                opacity = 0.7, 
-                #labFormat = labelFormat(suffix = "%"),
-                title = "Dissimilarity from selected area",
-                position = "bottomright",
-                group = "legend")
+    p <- selected_grid_id_reactive()
+    #print(p)
+    p
     
   })
   
-  observeEvent(input$map_shape_click, {
+  output$chloropleth_map <- renderPlot({
     
-    p <- input$map_shape_click$id
-    print(p)
+    print(similarity_grid_reactive())
     
-    output$clicked_grid_id <- renderPrint(p)
+    similarity_grid_reactive() %>%
+      ggplot() +
+      geom_sf(aes(fill = distance)) +
+      geom_point(data = filter(similarity_grid_reactive(),
+                               highlight_grid == T),
+                 aes(x, y),
+                 color = "white") +
+      scale_fill_viridis_c()
     
   })
+  
+  #output$table_output <- renderTable(head(similarity_grid_reactive()))
   
 })
