@@ -41,10 +41,10 @@ prep_similarity_index <- function(similarity_index_data, select_geo_index = 16){
     separate(geo_id_compare, into = c("x_compare", "y_compare"), sep = "_")
 
   #turn reference x,y into sf coordinates
-  reference_coords <- reference_coords %>% 
-    separate(geo_id, into = c("x", "y"), sep = "_") %>% 
-    mutate(across(everything(), as.numeric)) %>% 
-    st_as_sf(coords = c("x", "y"), crs = mollweide)
+  # reference_coords <- reference_coords %>% 
+  #   separate(geo_id, into = c("x", "y"), sep = "_") %>% 
+  #   mutate(across(everything(), as.numeric)) %>% 
+  #   st_as_sf(coords = c("x", "y"), crs = mollweide)
 
   similarity_geo <- similarity_geo %>% 
     #turn compare x,y into sf coordinates
@@ -53,13 +53,17 @@ prep_similarity_index <- function(similarity_index_data, select_geo_index = 16){
     #join to get geo_index of reference coords
     left_join(geo_id_index, by = c("geo_id_reference" = "geo_id")) %>% 
     rename(geo_index_reference = geo_index) %>% 
+    mutate(highlight_grid = geo_index_compare == select_geo_index) %>% 
     #reorder variables
-    select(month, geo_id_reference, geo_index_reference, geometry, geo_index_compare, distance)
+    select(month, geo_id_reference, geo_index_reference, geometry, geo_index_compare, distance, highlight_grid)
   
   similarity_geo <- similarity_geo %>% 
     #calculate x,y from coordinate
     mutate(x = map_dbl(geometry, 1),
-           y = map_dbl(geometry, 2))
+           y = map_dbl(geometry, 2)) %>% 
+    mutate(geometry = st_buffer(geometry, 
+                                dist = 26700/2,
+                                endCapStyle = "SQUARE"))
   
   #similarity_geo <- similarity_geo# %>% 
     #mutate(highlight_grid = geo_index_compare == select_geo_index)
