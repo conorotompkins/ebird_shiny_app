@@ -45,3 +45,4 @@ output
 scripts/*/*.png
 scripts/*/*.html
 scripts/test/abundance_calculation_test_files
+rosm.cache

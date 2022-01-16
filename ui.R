@@ -34,6 +34,12 @@ ui <- shinyUI(
                    max = 199,
                    step = 1),
       plotOutput("chloropleth_map", click = "plot_click"),
+      sliderInput("transparency_slider_input",
+                  "Tile Transparency",
+                  min = 0,
+                  max = 1,
+                  value = 1,
+                  step = .25),
       tableOutput("table_output")
       
     )
