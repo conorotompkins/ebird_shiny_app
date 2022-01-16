@@ -22,10 +22,19 @@ ui <- shinyUI(
     titlePanel("eBird Region Similarity Index"),
     # Show a plot of the generated distribution
     mainPanel(
+      shiny::selectizeInput("month_input",
+                            label = "Select Month",
+                            choices = month.abb),
       textOutput("text"),
-      #tableOutput("table"),
       verbatimTextOutput("clicked_grid_id"),
-      leafletOutput("map")
+      numericInput(inputId = "geo_index_compare_input",
+                   label = "geo_index_compare",
+                   value = 16,
+                   min = 1,
+                   max = 199,
+                   step = 1),
+      plotOutput("chloropleth_map", click = "plot_click"),
+      tableOutput("table_output")
       
     )
   )

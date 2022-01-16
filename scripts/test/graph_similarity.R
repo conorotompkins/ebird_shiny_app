@@ -71,7 +71,7 @@ geo_id_index <- geo_id_index %>%
   select(-c(x_num, y_num, x, y))
 
 #choose one geo_index to test
-select_geo_index <- 16
+select_geo_index <- 23
 
 reference_coords <- geo_id_index %>% 
   filter(geo_index == select_geo_index) %>% 
@@ -89,10 +89,10 @@ similarity_geo <- similarity_index %>%
 similarity_geo
 
 #turn reference x,y into sf coordinates
-reference_coords <- reference_coords %>% 
-  separate(geo_id, into = c("x", "y"), sep = "_") %>% 
-  mutate(across(everything(), as.numeric)) %>% 
-  st_as_sf(coords = c("x", "y"), crs = mollweide)
+# reference_coords <- reference_coords %>% 
+#   separate(geo_id, into = c("x", "y"), sep = "_") %>% 
+#   mutate(across(everything(), as.numeric)) %>% 
+#   st_as_sf(coords = c("x", "y"), crs = mollweide)
 
 similarity_geo %>% 
   #turn compare x,y into sf coordinates
@@ -115,6 +115,12 @@ similarity_geo <- similarity_geo %>%
   mutate(x = map_dbl(geometry, 1),
          y = map_dbl(geometry, 2))
 
+similarity_geo %>% 
+  mutate(geometry = st_buffer(geometry, 
+                              dist = 26700/2,
+                              endCapStyle = "SQUARE")) %>% 
+  plot()
+
 similarity_geo <- similarity_geo %>% 
   mutate(highlight_grid = geo_index_compare == select_geo_index)
 
@@ -125,38 +131,36 @@ similarity_geo %>%
   st_drop_geometry() %>% 
   select(x, y) %>% 
   recreate_tile() %>% 
-  bind_cols(similarity_geo %>% 
-              st_drop_geometry() %>% 
-              select(x, y)) %>% 
   ggplot() +
   geom_sf() +
   geom_point(aes(x, y))
 
-similarity_geo_tile <- similarity_geo %>% 
-  st_drop_geometry() %>% 
-  select(x, y) %>% 
-  recreate_tile() %>% 
-  bind_cols(similarity_geo %>% 
-              st_drop_geometry() %>% 
-              select(geo_index_reference, x, y, distance, highlight_grid))
+similarity_geo <- similarity_geo %>% 
+  mutate(geometry = st_buffer(geometry, 
+                              dist = 26700/2,
+                              endCapStyle = "SQUARE"))
 
-similarity_geo_tile %>% 
+similarity_geo %>% 
+  ggplot(aes(x, y, label = geo_index_compare)) +
+  geom_text()
+
+similarity_geo %>% 
   ggplot(aes(x, y)) +
   geom_raster(aes(fill = distance)) +
   scale_fill_viridis_c()
 
-similarity_geo_tile %>% 
+similarity_geo %>% 
   ggplot() +
   geom_sf(aes(fill = distance)) +
   geom_sf(data = region_shape_moll, alpha = 0) +
-  geom_point(data = filter(similarity_geo_tile, highlight_grid == T),
+  geom_point(data = filter(similarity_geo, highlight_grid == T),
              aes(x, y), 
              color = "white") +
   scale_fill_viridis_c(direction = 1) +
   labs(fill = "Distance")
 
 #doesnt work with leaflet crs
-similarity_geo_tile %>% 
+similarity_geo %>% 
   st_transform(crs = "EPSG:4326") %>% 
   mapdeck() %>% 
   add_sf(fill_colour = "distance",
@@ -164,16 +168,15 @@ similarity_geo_tile %>%
          stroke_colour = "highlight_grid",
          legend = T,
          auto_highlight = T,
-         tooltip = "grid_id_compare"#,
-         #radius = 10^4
+         tooltip = "grid_id_compare"
   )
 
 pal <- colorNumeric(
   palette = "viridis",
-  domain = similarity_geo_tile$distance)
+  domain = similarity_geo$distance)
 
-similarity_geo_tile %>% 
-  mutate(grid_opacity = case_when(highlight_grid == T ~ 0,
+similarity_geo %>% 
+  mutate(grid_opacity = case_when(highlight_grid == T ~ .3,
                                   highlight_grid == F ~ .99)) %>%
   st_transform(crs = "EPSG:4326") %>% 
   leaflet() %>%

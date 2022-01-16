@@ -28,7 +28,7 @@ location_birds <- ebirdst_runs %>%
   inner_join(location_birds, by = c("species_code"))
 
 perching_birds <- ebird_tax %>% 
-  filter(order == "Passeriformes") %>% 
+  #filter(order == "Passeriformes") %>% 
   select(scientific_name, common_name, species_code, family_common_name)
 
 location_songbirds <- location_birds %>% 
@@ -36,7 +36,9 @@ location_songbirds <- location_birds %>%
 
 top_families <- location_songbirds %>% 
   count(family_common_name, sort = T) %>% 
-  slice(1:2)
+  slice(1:4)
+
+top_families
 
 species_table <- location_songbirds %>% 
   semi_join(top_families) %>% 

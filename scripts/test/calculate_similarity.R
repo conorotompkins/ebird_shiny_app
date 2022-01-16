@@ -35,11 +35,34 @@ region_shape_moll %>%
 abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
   #keep(str_detect(., "Dark-eyed Junco")) %>% 
   set_names() %>% 
-  map_dfr(vroom, delim = ",", .id = 'comName') %>% 
+  map_dfr(vroom, delim = ",", .id = 'comName', col_type = cols(.default = "c")) %>% 
   mutate(comName = basename(comName) %>% file_path_sans_ext,
          month = month(date, label = T)) %>% 
   rename(abundance = value) %>% 
-  mutate(abundance = coalesce(abundance, 0))
+  mutate(abundance = parse_number(abundance),
+         abundance = coalesce(abundance, 0),
+         x_num = parse_number(x),
+         y_num = parse_number(y)) %>% 
+  arrange(comName, x, y)
+
+abunds_table %>% 
+  group_by(comName) %>% 
+  summarize(appears = sum(abundance > 0)) %>% 
+  filter(appears == 0)
+
+false_appearance <- abunds_table %>% 
+  group_by(comName) %>% 
+  summarize(appears = sum(abundance > 0)) %>% 
+  filter(appears == 0) %>% 
+  ungroup() %>% 
+  distinct(comName)
+
+abunds_table %>% 
+  semi_join(false_appearance, by = "comName")
+
+abunds_table %>% 
+  count(comName) %>% 
+  distinct(n)
 
 abunds_table %>% 
   distinct(x, y) %>% 
@@ -47,9 +70,18 @@ abunds_table %>%
   distinct(n)
 
 abunds_table %>% 
-  distinct(x, y) %>% 
-  count(x, y, sort = T) %>% 
-  ggplot(aes(x, y, size = n)) +
+  distinct(x_num, y_num) %>% 
+  count(x_num, y_num, sort = T) %>% 
+  ggplot(aes(x_num, y_num, size = n)) +
+  geom_point()
+
+#birds with "different" coordinates still have similar map
+abunds_table %>% 
+  #semi_join(false_appearance) %>% 
+  filter(comName %in% c("Common Shelduck", "Red-necked Stint")) %>% 
+  distinct(x_num, y_num) %>% 
+  count(x_num, y_num, sort = T) %>% 
+  ggplot(aes(x_num, y_num, size = n)) +
   geom_point()
 
 #each x,y occurs once within a species
@@ -75,20 +107,61 @@ geo_id_table <- abunds_table %>%
   select(comName, x, y) %>% 
   mutate(geo_id = str_c(x, y, sep = "_"))
 
+geo_id_table %>% 
+  count(geo_id, sort = T) %>% 
+  distinct(n)
+
+geo_id_table %>% 
+  group_by(geo_id) %>% 
+  filter(n() == 104) %>% 
+  ungroup() %>% 
+  distinct(comName)
+
+#some species have basically the same coordinates with differences after many decimal places
+
+#x have variable length
+geo_id_table %>% 
+  mutate(x_len = str_length(x),
+         y_len = str_length(y)) %>% 
+  count(x_len)
+
+#y have consistent length
+geo_id_table %>% 
+  mutate(x_len = str_length(x),
+         y_len = str_length(y)) %>% 
+  count(y_len)
+
 test_1 <- geo_id_table %>% 
   filter(comName == "Song Sparrow") %>% 
-  select(-comName)
+  #select(-comName) %>% 
+  mutate(x_len = str_length(x),
+         y_len = str_length(y))
   
 test_2 <- geo_id_table %>% 
-  filter(comName == "Cape May Warbler") %>% 
-  select(-comName)
+  filter(comName == "Common Shelduck") %>% 
+  #select(-comName) %>% 
+  mutate(x_len = str_length(x),
+         y_len = str_length(y))
 
-test_1 == test_2
+test_1 %>% 
+  select(x, y) %>% 
+  anti_join(select(test_2, x, y),
+            by = c("x", "y")) %>% 
+  distinct(x, y)
+
+#1007690.315618213
+
+test_1 %>% 
+  select(comName, x, y) %>% 
+  full_join(select(test_2, comName, x, y),
+            by = c("x", "y"))%>% 
+  View()
 
 all.equal(test_1, test_2)
 
 #create abundance summary
 abundance_summary <- abunds_table %>%
+  anti_join(false_appearance, by = "comName") %>% 
   group_by(comName, month, x, y) %>% 
   summarize(abundance = mean(abundance, na.rm = T)) %>%
   ungroup() %>% 
@@ -118,11 +191,12 @@ abundance_summary %>%
   ggplot() +
   geom_sf(data = region_shape_moll, color = "black") +
   geom_sf(aes(color = abundance)) +
-  scale_color_viridis_c()
+  scale_color_viridis_c() +
+  facet_wrap(~month)
 
 #no issue with duplicate x,y
 abundance_summary %>%
-  filter(comName %in% c("Cape May Warbler", "Song Sparrow"),
+  filter(comName %in% c("Cape May Warbler", "American Black Duck"),
          month == "Sep") %>% 
   separate(geo_id, into = c("x", "y"), sep = "_") %>% 
   mutate(across(c(x, y), parse_number)) %>% 
@@ -132,7 +206,7 @@ abundance_summary %>%
 
 #rm(abunds_table)
 
-pairwise_dist_f <- function(x, geo_id, comName, abundance){
+pairwise_dist_f <- function(x){
   
   pairwise_dist(tbl = x, item = geo_id, feature = comName, value = abundance,
                 diag = T, upper = T)
@@ -147,16 +221,16 @@ abundance_summary %>%
 
 similarity_index <- abundance_summary %>% 
   st_drop_geometry() %>% 
-  filter(month == "Apr") %>% 
-  select(geo_id, comName, abundance) %>% 
+  #filter(month == "Apr") %>% 
+  select(month, geo_id, comName, abundance) %>% 
   #for future development
-  #group_nest(month) %>% 
-  # mutate(dist_data = pmap(list(geo_id, comName, abundance),
-  #                         ~pairwise_dist(data, ..1, ..2, ..3, diag = T, upper = T)))
-  pairwise_dist(geo_id, comName, abundance, diag = T, upper = T) %>% 
+  group_nest(month) %>%
+  mutate(dist_data = map(data, pairwise_dist_f)) %>% 
+  select(-data) %>% 
+  unnest(dist_data) %>% 
+  #pairwise_dist(geo_id, comName, abundance, diag = T, upper = T) %>% 
   rename(geo_id_1 = item1,
          geo_id_2 = item2) %>% 
-  mutate(month = "Apr") %>% 
   select(month, everything()) %>% 
   arrange(geo_id_1, geo_id_2)
 
@@ -178,7 +252,8 @@ similarity_index %>%
 
 similarity_index %>% 
   ggplot(aes(distance)) +
-  geom_histogram()
+  geom_histogram() +
+  facet_wrap(~month)
 
 #this is the issue
 test_geo_id_1 <- similarity_index %>% 
