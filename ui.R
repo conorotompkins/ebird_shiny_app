@@ -22,6 +22,9 @@ ui <- shinyUI(
     titlePanel("eBird Region Similarity Index"),
     # Show a plot of the generated distribution
     mainPanel(
+      shiny::selectizeInput("month_input",
+                            label = "Select Month",
+                            choices = month.abb),
       textOutput("text"),
       verbatimTextOutput("clicked_grid_id"),
       numericInput(inputId = "geo_index_compare_input",

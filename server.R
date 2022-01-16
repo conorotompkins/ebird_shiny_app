@@ -4,6 +4,9 @@ library(tidyverse)
 
 library(sf)
 library(tigris)
+library(hrbrthemes)
+
+theme_set(theme_ipsum())
 
 options(tigris_use_cache = TRUE)
 
@@ -27,25 +30,39 @@ base_map_data %>%
   ggplot() +
   geom_text(aes(x, y, label = geo_index_compare))
 
-#create pa shape
+#create region shape
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
 original_raster_crs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +no_defs"
 
-pa_shape <- states(cb = T) %>% 
-  filter(NAME == "Pennsylvania") %>% 
-  st_transform(crs = original_raster_crs)
+region_input <- "Pennsylvania, New Jersey"
 
-pa_bbox <- pa_shape %>% 
+region_shape <- states(cb = T) %>% 
+  filter(str_detect(region_input, NAME)) %>% 
+  st_transform(crs = original_raster_crs) %>% 
+  summarize()
+
+region_bbox <- region_shape %>% 
   sf::st_bbox(crs = original_raster_crs)
 
-pa_shape_moll <- pa_shape %>% 
+region_shape_moll <- region_shape %>% 
   st_transform(mollweide)
+
+region_shape_moll %>% 
+  ggplot() +
+  geom_sf()
 
 #grid_geo <- st_read("data/big/grid_shapefile/grid_shapefile.shp")
 
 # Define server logic required to draw a histogram
 server <- shinyServer(function(input, output, session) {
+  
+  similarity_index_reactive <- reactive({
+    
+    similarity_index %>%
+      filter(month == input$month_input)
+    
+  })
   
   selected_grid_id_reactive <- reactive({
     
@@ -55,7 +72,7 @@ server <- shinyServer(function(input, output, session) {
   
   similarity_grid_reactive <- reactive({
     
-    similarity_index %>%
+    similarity_index_reactive() %>%
       prep_similarity_index(selected_grid_id_reactive())
     
   })
@@ -79,6 +96,7 @@ server <- shinyServer(function(input, output, session) {
                                highlight_grid == T),
                  aes(x, y),
                  color = "white") +
+      geom_sf(data = region_shape_moll, alpha = 0) +
       scale_fill_viridis_c()
     
   })
