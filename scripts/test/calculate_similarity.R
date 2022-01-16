@@ -35,11 +35,36 @@ region_shape_moll %>%
 abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
   #keep(str_detect(., "Dark-eyed Junco")) %>% 
   set_names() %>% 
-  map_dfr(vroom, delim = ",", .id = 'comName') %>% 
+  map_dfr(vroom, delim = ",", .id = 'comName', col_type = cols(.default = "c")) %>% 
   mutate(comName = basename(comName) %>% file_path_sans_ext,
          month = month(date, label = T)) %>% 
   rename(abundance = value) %>% 
-  mutate(abundance = coalesce(abundance, 0))
+  mutate(abundance = parse_number(abundance),
+         abundance = coalesce(abundance, 0),
+         x_num = parse_number(x),
+         y_num = parse_number(y))
+
+abunds_table %>% 
+  group_by(comName) %>% 
+  summarize(appears = sum(abundance > 0)) %>% 
+  filter(appears == 0)
+
+false_appearance <- abunds_table %>% 
+  group_by(comName) %>% 
+  summarize(appears = sum(abundance > 0)) %>% 
+  filter(appears == 0) %>% 
+  ungroup() %>% 
+  distinct(comName)
+
+abunds_table <- abunds_table %>% 
+  anti_join(false_appearance, by = "comName")
+
+abunds_table %>% 
+  semi_join(false_appearance, by = "comName")
+
+abunds_table %>% 
+  count(comName) %>% 
+  distinct(n)
 
 abunds_table %>% 
   distinct(x, y) %>% 
@@ -47,9 +72,9 @@ abunds_table %>%
   distinct(n)
 
 abunds_table %>% 
-  distinct(x, y) %>% 
-  count(x, y, sort = T) %>% 
-  ggplot(aes(x, y, size = n)) +
+  distinct(x_num, y_num) %>% 
+  count(x_num, y_num, sort = T) %>% 
+  ggplot(aes(x_num, y_num, size = n)) +
   geom_point()
 
 #each x,y occurs once within a species
@@ -75,12 +100,22 @@ geo_id_table <- abunds_table %>%
   select(comName, x, y) %>% 
   mutate(geo_id = str_c(x, y, sep = "_"))
 
+geo_id_table %>% 
+  count(geo_id, sort = T) %>% 
+  distinct(n)
+
+geo_id_table %>% 
+  group_by(geo_id) %>% 
+  filter(n() == 104) %>% 
+  ungroup() %>% 
+  distinct(comName)
+
 test_1 <- geo_id_table %>% 
   filter(comName == "Song Sparrow") %>% 
   select(-comName)
   
 test_2 <- geo_id_table %>% 
-  filter(comName == "Cape May Warbler") %>% 
+  filter(comName == "Common Shelduck") %>% 
   select(-comName)
 
 test_1 == test_2
@@ -118,11 +153,12 @@ abundance_summary %>%
   ggplot() +
   geom_sf(data = region_shape_moll, color = "black") +
   geom_sf(aes(color = abundance)) +
-  scale_color_viridis_c()
+  scale_color_viridis_c() +
+  facet_wrap(~month)
 
 #no issue with duplicate x,y
 abundance_summary %>%
-  filter(comName %in% c("Cape May Warbler", "Song Sparrow"),
+  filter(comName %in% c("Cape May Warbler", "American Black Duck"),
          month == "Sep") %>% 
   separate(geo_id, into = c("x", "y"), sep = "_") %>% 
   mutate(across(c(x, y), parse_number)) %>% 
