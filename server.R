@@ -8,10 +8,6 @@ library(tigris)
 options(tigris_use_cache = TRUE)
 
 source("scripts/functions/prep_similarity_index.R")
-#source("scripts/functions/recreate_tile.R")
-
-# file.copy(from = "data/big/similarity_index.csv",
-#           to = "area_similarity/data")
 
 #create similarity index
 #load similarity index data
