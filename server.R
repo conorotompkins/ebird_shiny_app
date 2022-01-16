@@ -110,6 +110,12 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
-  #output$table_output <- renderTable(head(similarity_grid_reactive()))
+  output$histogram <- renderPlot({
+    
+    similarity_grid_reactive() %>% 
+      ggplot(aes(distance)) +
+      geom_histogram()
+    
+  })
   
 })
