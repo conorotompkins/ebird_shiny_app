@@ -35,16 +35,11 @@ region_shape_moll %>%
 similarity_index <- read_csv("data/big/similarity_index.csv")
 
 similarity_geo <- similarity_index %>% 
-  prep_similarity_index(182)
+  prep_similarity_index(23)
 
 similarity_geo %>% 
   ggplot(aes(x, y, label = geo_index_compare)) +
   geom_text()
-
-similarity_geo %>% 
-  ggplot(aes(x, y)) +
-  geom_raster(aes(fill = distance)) +
-  scale_fill_viridis_c()
 
 similarity_geo %>% 
   ggplot() +
