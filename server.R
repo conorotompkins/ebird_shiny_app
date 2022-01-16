@@ -5,6 +5,7 @@ library(tidyverse)
 library(sf)
 library(tigris)
 library(hrbrthemes)
+library(ggspatial)
 
 theme_set(theme_ipsum())
 
@@ -22,13 +23,13 @@ similarity_index <- read_csv("data/big/similarity_index.csv")
 base_map_data <- similarity_index %>% 
   prep_similarity_index()
 
-base_map_data %>% 
-  ggplot() +
-  geom_sf(aes(fill = distance))
-
-base_map_data %>% 
-  ggplot() +
-  geom_text(aes(x, y, label = geo_index_compare))
+# base_map_data %>% 
+#   ggplot() +
+#   geom_sf(aes(fill = distance))
+# 
+# base_map_data %>% 
+#   ggplot() +
+#   geom_text(aes(x, y, label = geo_index_compare))
 
 #create region shape
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
@@ -48,9 +49,9 @@ region_bbox <- region_shape %>%
 region_shape_moll <- region_shape %>% 
   st_transform(mollweide)
 
-region_shape_moll %>% 
-  ggplot() +
-  geom_sf()
+# region_shape_moll %>% 
+#   ggplot() +
+#   geom_sf()
 
 #grid_geo <- st_read("data/big/grid_shapefile/grid_shapefile.shp")
 
@@ -85,13 +86,21 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
+  transparency_reactive <- reactive({
+    
+    input$transparency_slider_input
+    
+  })
+  
   output$chloropleth_map <- renderPlot({
     
     print(similarity_grid_reactive())
     
     similarity_grid_reactive() %>%
       ggplot() +
-      geom_sf(aes(fill = distance)) +
+      annotation_map_tile(type = "stamenbw") + 
+      geom_sf(aes(fill = distance),
+              alpha = transparency_reactive()) +
       geom_point(data = filter(similarity_grid_reactive(),
                                highlight_grid == T),
                  aes(x, y),

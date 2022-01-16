@@ -41,8 +41,11 @@ similarity_geo %>%
   ggplot(aes(x, y, label = geo_index_compare)) +
   geom_text()
 
+library(ggspatial)
+
 similarity_geo %>% 
   ggplot() +
+  annotation_map_tile(type = "stamenbw") + 
   geom_sf(aes(fill = distance)) +
   geom_sf(data = region_shape_moll, alpha = 0) +
   geom_point(data = filter(similarity_geo, highlight_grid == T),
