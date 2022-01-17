@@ -15,21 +15,14 @@ source("scripts/functions/prep_similarity_index.R")
 
 #create similarity index
 #load similarity index data
+bins <- c(-Inf, 0, seq(from = 10, to = 80, by = 10), Inf)
+length(bins)
+
+bin_labels <- c("0", "1-10", "10-20", "20-30", "30-40", "40-50", "50-60",
+                "60-70", "70-80", "80+")
+length(bin_labels)
+
 similarity_index <- read_csv("data/big/similarity_index.csv")
-
-# similarity_geo_tile <- st_read("data/similarity_geo_tile/similarity_geo_tile.shp") %>% 
-#   set_names(c("x", "y", "geo_index_reference", "geo_index_compare", "distance", "highlight_grid", "geometry"))
-
-base_map_data <- similarity_index %>% 
-  prep_similarity_index()
-
-# base_map_data %>% 
-#   ggplot() +
-#   geom_sf(aes(fill = distance))
-# 
-# base_map_data %>% 
-#   ggplot() +
-#   geom_text(aes(x, y, label = geo_index_compare))
 
 #create region shape
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
@@ -48,12 +41,6 @@ region_bbox <- region_shape %>%
 
 region_shape_moll <- region_shape %>% 
   st_transform(mollweide)
-
-# region_shape_moll %>% 
-#   ggplot() +
-#   geom_sf()
-
-#grid_geo <- st_read("data/big/grid_shapefile/grid_shapefile.shp")
 
 # Define server logic required to draw a histogram
 server <- shinyServer(function(input, output, session) {
@@ -74,7 +61,10 @@ server <- shinyServer(function(input, output, session) {
   similarity_grid_reactive <- reactive({
     
     similarity_index_reactive() %>%
-      prep_similarity_index(selected_grid_id_reactive())
+      prep_similarity_index(selected_grid_id_reactive()) %>% 
+      mutate(distance_bin = cut(distance, breaks = bins, labels = bin_labels)) %>% 
+      complete(month, distance_bin = bin_labels) %>% 
+      st_sf() 
     
   })
   
@@ -99,22 +89,28 @@ server <- shinyServer(function(input, output, session) {
     similarity_grid_reactive() %>%
       ggplot() +
       annotation_map_tile(type = "stamenbw") + 
-      geom_sf(aes(fill = distance),
-              alpha = transparency_reactive()) +
+      geom_sf(aes(fill = distance_bin),
+              alpha = transparency_reactive(),
+              color = NA) +
       geom_point(data = filter(similarity_grid_reactive(),
                                highlight_grid == T),
                  aes(x, y),
                  color = "white") +
       geom_sf(data = region_shape_moll, alpha = 0) +
-      scale_fill_viridis_c()
+      scale_fill_viridis_d() +
+      labs(fill = "Dissimilarity")
     
   })
   
   output$histogram <- renderPlot({
     
     similarity_grid_reactive() %>% 
-      ggplot(aes(distance)) +
-      geom_histogram()
+      count(month, distance_bin) %>% 
+      ggplot(aes(distance_bin, n, fill = distance_bin)) +
+      geom_col() +
+      scale_fill_viridis_d() +
+      guides(fill = "none") +
+      labs(x = "Dissimilarity")
     
   })
   
