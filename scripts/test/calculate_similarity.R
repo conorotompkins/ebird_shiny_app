@@ -41,8 +41,9 @@ abunds_table <- list.files("data/big/species_abundance", full.names = T) %>%
   rename(abundance = value) %>% 
   mutate(abundance = parse_number(abundance),
          abundance = coalesce(abundance, 0),
-         x_num = parse_number(x),
-         y_num = parse_number(y)) %>% 
+         #round to get rid of discrepancies
+         x_num = parse_number(x) %>% round(2),
+         y_num = parse_number(y) %>% round(2)) %>% 
   arrange(comName, x, y)
 
 abunds_table %>% 
@@ -162,16 +163,16 @@ all.equal(test_1, test_2)
 #create abundance summary
 abundance_summary <- abunds_table %>%
   anti_join(false_appearance, by = "comName") %>% 
-  group_by(comName, month, x, y) %>% 
+  group_by(comName, month, x_num, y_num) %>% 
   summarize(abundance = mean(abundance, na.rm = T)) %>%
   ungroup() %>% 
   mutate(species_id = str_c(comName, sep = "_"),
-         geo_id = str_c(x, y, sep = "_")) %>% 
-  st_as_sf(coords = c("x", "y"), crs = mollweide) %>% 
-  st_filter(region_shape_moll, join = st_intersects) %>% 
+         geo_id = str_c(x_num, y_num, sep = "_")) %>% 
+  st_as_sf(coords = c("x_num", "y_num"), crs = mollweide) %>% 
+  #st_filter(region_shape_moll, join = st_intersects) %>% 
   select(-species_id)
 
-#each species has 2388 rows
+#each species has 4104 rows
 abundance_summary %>% 
   st_drop_geometry() %>% 
   count(comName) %>% 
@@ -186,8 +187,9 @@ abundance_summary %>%
   filter(is.na(month))
 
 abundance_summary %>%
-  filter(comName == "Cape May Warbler",
-         month == "Sep") %>% 
+  filter(comName == "Cape May Warbler"#,
+         #month == "Sep"
+         ) %>% 
   ggplot() +
   geom_sf(data = region_shape_moll, color = "black") +
   geom_sf(aes(color = abundance)) +
@@ -213,7 +215,7 @@ pairwise_dist_f <- function(x){
   
 }
 
-#each geo_id_1 in similarity_index should have 199 geo_id_2s
+#each geo_id_1 in similarity_index should have 342 geo_id_2s
 abundance_summary %>% 
   st_drop_geometry() %>% 
   distinct(geo_id) %>% 
@@ -234,20 +236,14 @@ similarity_index <- abundance_summary %>%
   select(month, everything()) %>% 
   arrange(geo_id_1, geo_id_2)
 
-#199 geo_id_1s
+#4104 geo_id_1s
 similarity_index %>% 
   count(geo_id_1) %>% 
   distinct(n)
 
-#199 geo_id_2s
+#4104 geo_id_2s
 similarity_index %>% 
   count(geo_id_2) %>% 
-  distinct(n)
-
-#199 geo_id_1 + geo_id_2
-similarity_index %>% 
-  distinct(geo_id_1, geo_id_2) %>% 
-  count(geo_id_1) %>% 
   distinct(n)
 
 similarity_index %>% 
