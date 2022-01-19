@@ -11,16 +11,29 @@ library(mapview)
 options(tigris_use_cache = TRUE)
 
 abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
-  keep(str_detect(., "Dark-eyed Junco")) %>% 
+  keep(str_detect(., "Cape May Warbler")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName') %>% 
   mutate(comName = basename(comName) %>% file_path_sans_ext,
          month = month(date, label = T)) %>% 
+  mutate(x = round(x, 2),
+         y = round(y, 2)) %>% 
   rename(abundance = value)
 
 abunds_table %>% 
+  count(date) %>% 
+  distinct(n)
+
+#not all months have the same number of weeks. this is fine i think
+abunds_table %>% 
   count(month) %>% 
   distinct(n)
+
+abunds_table %>% 
+  group_by(month) %>% 
+  filter(n() == 1490) %>% 
+  ungroup() %>% 
+  distinct(month)
 
 abunds_table %>% 
   count(x, y) %>% 
@@ -28,20 +41,22 @@ abunds_table %>%
 
 abunds_table %>% 
   count(month, x, y) %>% 
+  distinct(n)
+
+abunds_table %>% 
+  count(month, x, y) %>% 
   filter(n == 5) %>% 
   distinct(month)
 
-peak_month <- abunds_table %>% 
+peak_months <- abunds_table %>% 
   group_by(comName, month) %>% 
   summarize(abundance = mean(abundance, na.rm = T)) %>% 
-  arrange(desc(abundance)) %>% 
-  slice(1) %>% 
-  pull(month)
+  arrange(desc(abundance))
 
 species_peak <- abunds_table %>% 
-  filter(month == peak_month) %>% 
   group_by(comName, x, y, month) %>% 
-  summarize(abundance = mean(abundance, na.rm = T))
+  summarize(abundance = mean(coalesce(abundance, 0), na.rm = T)) %>% 
+  semi_join(peak_months, by = "month")
 
 species_peak %>% 
   count(month)
@@ -50,28 +65,31 @@ mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
 original_raster_crs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +no_defs"
 
-pa_shape <- states(cb = T) %>% 
-  filter(NAME == "Pennsylvania") %>% 
-  st_transform(crs = original_raster_crs)
+region_input <- "Pennsylvania, New Jersey"
 
-pa_shape %>% 
-  ggplot() +
-  geom_sf()
+region_shape <- states(cb = T) %>% 
+  filter(str_detect(region_input, NAME)) %>% 
+  st_transform(crs = original_raster_crs) %>% 
+  summarize()
 
-pa_bbox <- pa_shape %>% 
+region_bbox <- region_shape %>% 
   sf::st_bbox(crs = original_raster_crs)
 
-pa_shape_moll <- pa_shape %>% 
+region_shape_moll <- region_shape %>% 
   st_transform(mollweide)
 
-pa_shape_moll %>% 
+buffer <- 10^4 * 4
+
+region_shape_moll %>% 
   ggplot() +
-  geom_sf()
+  geom_sf() +
+  geom_sf(data = st_buffer(region_shape_moll, buffer),
+          color = "red", alpha = 0)
 
 species_peak %>% 
   ggplot() +
   geom_raster(aes(x, y, fill = abundance)) +
-  geom_sf(data = pa_shape_moll, alpha = 0, color = "black") +
+  geom_sf(data = region_shape_moll, alpha = 0, color = "black") +
   facet_wrap(~month) +
   scale_fill_viridis_c()
 
