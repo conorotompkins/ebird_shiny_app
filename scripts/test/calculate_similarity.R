@@ -172,7 +172,7 @@ abundance_summary <- abunds_table %>%
   #st_filter(region_shape_moll, join = st_intersects) %>% 
   select(-species_id)
 
-#each species has 4104 rows
+#each species has 3576 rows
 abundance_summary %>% 
   st_drop_geometry() %>% 
   count(comName) %>% 
@@ -236,12 +236,24 @@ similarity_index <- abundance_summary %>%
   select(month, everything()) %>% 
   arrange(geo_id_1, geo_id_2)
 
-#4104 geo_id_1s
+#298 geo_id_1s
+similarity_index %>% 
+  distinct(geo_id_1) %>% 
+  count(geo_id_1) %>% 
+  nrow()
+
+#298 geo_id_1s
+similarity_index %>% 
+  distinct(geo_id_2) %>% 
+  count(geo_id_2) %>% 
+  nrow()
+
+#each geo_id_1 appears 3576 
 similarity_index %>% 
   count(geo_id_1) %>% 
   distinct(n)
 
-#4104 geo_id_2s
+#each geo_id_2 appears 3576 
 similarity_index %>% 
   count(geo_id_2) %>% 
   distinct(n)
@@ -251,7 +263,7 @@ similarity_index %>%
   geom_histogram() +
   facet_wrap(~month)
 
-#this is the issue
+#this is the issue with not using upper = T in matrix function
 test_geo_id_1 <- similarity_index %>% 
   #filter(geo_id_1 == "1007690.31561821_4762108.24422306") %>% 
   distinct(geo_id_1) %>% 
