@@ -99,11 +99,6 @@ species_peak <- species_peak %>%
 
 st_crs(species_peak)
 
-species_peak %>% 
-  ggplot(aes(color = abundance)) +
-  geom_sf() +
-  scale_color_viridis_c()
-
 mapdeck(style = mapdeck_style('dark'), pitch = 0) %>% 
   add_screengrid(
     data = species_peak

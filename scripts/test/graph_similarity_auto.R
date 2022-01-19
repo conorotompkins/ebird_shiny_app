@@ -20,8 +20,7 @@ region_str <- "Pennsylvania, New Jersey"
 
 region_shape <- states(cb = T) %>% 
   filter(str_detect(region_str, NAME)) %>% 
-  st_transform(crs = original_raster_crs) %>% 
-  summarize()
+  st_transform(crs = original_raster_crs)
 
 region_bbox <- region_shape %>% 
   sf::st_bbox(crs = original_raster_crs)
@@ -37,7 +36,7 @@ region_shape_moll %>%
 similarity_index <- vroom("data/big/similarity_index.csv")
 
 similarity_geo <- similarity_index %>% 
-  prep_similarity_index(23) %>% 
+  prep_similarity_index(45) %>% 
   mutate(month = fct_relevel(month, month.abb))
 
 similarity_geo %>% 
@@ -63,14 +62,15 @@ similarity_geo_binned %>%
   st_sf() %>% 
   #View()
   ggplot() +
-  #annotation_map_tile(type = "stamenbw") + 
-  geom_sf(aes(fill = distance_bin, color = distance_bin)) +
+  annotation_map_tile(type = "stamenbw") + 
+  geom_sf(aes(fill = distance_bin, color = distance_bin), alpha = .25) +
   geom_sf(data = region_shape_moll, alpha = 0) +
   geom_point(data = filter(similarity_geo_binned, highlight_grid == T),
              aes(x, y), 
              color = "white") +
   scale_fill_viridis_d(direction = 1) +
   scale_color_viridis_d(direction = 1) +
+  guides(color = "none") +
   labs(fill = "Distance")
 
 similarity_geo_binned %>% 
