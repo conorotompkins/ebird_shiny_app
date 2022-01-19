@@ -34,7 +34,7 @@ ui <- shinyUI(
                      label = "geo_index_compare",
                      value = 16,
                      min = 1,
-                     max = 199,
+                     max = 400,
                      step = 1),
         sliderInput("transparency_slider_input",
                     "Tile Transparency",
