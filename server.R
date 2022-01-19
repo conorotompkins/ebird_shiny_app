@@ -33,8 +33,7 @@ region_input <- "Pennsylvania, New Jersey"
 
 region_shape <- states(cb = T) %>% 
   filter(str_detect(region_input, NAME)) %>% 
-  st_transform(crs = original_raster_crs) %>% 
-  summarize()
+  st_transform(crs = original_raster_crs)
 
 region_bbox <- region_shape %>% 
   sf::st_bbox(crs = original_raster_crs)
@@ -84,12 +83,13 @@ server <- shinyServer(function(input, output, session) {
   
   output$chloropleth_map <- renderPlot({
     
-    print(similarity_grid_reactive())
+    #print(similarity_grid_reactive())
     
     similarity_grid_reactive() %>%
       ggplot() +
-      annotation_map_tile(type = "stamenbw") + 
-      geom_sf(aes(fill = distance_bin),
+      #annotation_map_tile(type = "stamenbw") + 
+      geom_sf(aes(fill = distance_bin,
+                  color = distance_bin),
               alpha = transparency_reactive(),
               color = NA) +
       geom_point(data = filter(similarity_grid_reactive(),
@@ -98,9 +98,11 @@ server <- shinyServer(function(input, output, session) {
                  color = "white") +
       geom_sf(data = region_shape_moll, alpha = 0) +
       scale_fill_viridis_d() +
+      scale_color_viridis_d() +
       labs(fill = "Dissimilarity")
     
-  })
+    
+  }, res = 96)
   
   output$histogram <- renderPlot({
     

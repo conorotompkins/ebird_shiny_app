@@ -27,16 +27,16 @@ location_birds <- ebirdst_runs %>%
   select(common_name, scientific_name, species_code) %>% 
   inner_join(location_birds, by = c("species_code"))
 
-perching_birds <- ebird_tax %>% 
+ebird_tax <- ebird_tax %>% 
   #filter(order == "Passeriformes") %>% 
   select(scientific_name, common_name, species_code, family_common_name)
 
 location_songbirds <- location_birds %>% 
-  inner_join(perching_birds, by = c("species_code", "common_name", "scientific_name"))
+  inner_join(ebird_tax, by = c("species_code", "common_name", "scientific_name"))
 
 top_families <- location_songbirds %>% 
   count(family_common_name, sort = T) %>% 
-  slice(1:4)
+  slice(1:5)
 
 top_families
 
@@ -51,16 +51,17 @@ region_str <- species_table %>%
 
 glimpse(species_table)
 
-# test <- get_species_metric("Pennsylvania, New Jersey", "Black-billed Magpie", "abundance", "lr")
+#test <- get_species_metric("Pennsylvania, New Jersey", "Cape May Warbler", "abundance", "lr")
 # 
 # test <- tibble(region = region_str,
-#                comName = "Black-billed Magpie",
+#                comName = "Cape May Warbler",
 #                metric = "abundance",
-#                resolution = "lr") %>% 
-#   mutate(abundance_table = pmap(list(region, comName, metric, resolution), 
+#                resolution = "lr") %>%
+#   mutate(abundance_table = pmap(list(region, comName, metric, resolution),
 #                                 ~get_species_metric(..1, ..2, ..3, ..4)))
 
 species_table <- species_table %>% 
+  #filter(common_name == "Cape May Warbler") %>% 
   distinct(common_name) %>% 
   mutate(resolution = "lr",
          metric = "abundance",
@@ -73,11 +74,9 @@ species_table %>%
   mutate(test = map_lgl(abundance_table, is.data.frame)) %>% 
   filter(test == T) %>% 
   unnest(abundance_table) %>% 
-  # mutate(x = map_dbl(geometry, 1),
-  #        y = map_dbl(geometry, 2)) %>% 
   distinct(x, y) %>% 
-  ggplot(aes(x, y)) +
-  geom_point()
+  ggplot() +
+  geom_point(aes(x, y))
 
 species_table %>% 
   select(common_name, abundance_table) %>% 
