@@ -1,4 +1,5 @@
 library(tidyverse)
+library(vroom)
 library(sf)
 library(tigris)
 library(leaflet)
@@ -33,7 +34,7 @@ region_shape_moll %>%
   geom_sf()
 
 #load similarity index data
-similarity_index <- read_csv("data/big/similarity_index.csv")
+similarity_index <- vroom("data/big/similarity_index.csv")
 
 similarity_geo <- similarity_index %>% 
   prep_similarity_index(23) %>% 
@@ -62,13 +63,14 @@ similarity_geo_binned %>%
   st_sf() %>% 
   #View()
   ggplot() +
-  annotation_map_tile(type = "stamenbw") + 
-  geom_sf(aes(fill = distance_bin)) +
+  #annotation_map_tile(type = "stamenbw") + 
+  geom_sf(aes(fill = distance_bin, color = distance_bin)) +
   geom_sf(data = region_shape_moll, alpha = 0) +
   geom_point(data = filter(similarity_geo_binned, highlight_grid == T),
              aes(x, y), 
              color = "white") +
   scale_fill_viridis_d(direction = 1) +
+  scale_color_viridis_d(direction = 1) +
   labs(fill = "Distance")
 
 similarity_geo_binned %>% 
