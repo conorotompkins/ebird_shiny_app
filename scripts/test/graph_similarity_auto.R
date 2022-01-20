@@ -90,3 +90,28 @@ similarity_geo_binned %>%
   geom_rug() +
   facet_wrap(~month, ncol = 2, scales = "free") +
   scale_fill_viridis_d()
+
+pal <- colorNumeric(
+  palette = "viridis",
+  domain = similarity_geo$distance)
+
+similarity_geo %>% 
+  filter(month == "Oct") %>% 
+  mutate(grid_opacity = case_when(highlight_grid == T ~ .1,
+                                  highlight_grid == F ~ .8)) %>%
+  st_transform(crs = "EPSG:4326") %>% 
+  leaflet() %>%
+  addProviderTiles(providers$Stamen.TonerLite,
+                   options = providerTileOptions(noWrap = TRUE)) %>%
+  addPolygons(layerId = ~geometry,
+              color = "#444444",
+              fillColor = ~pal(distance),
+              fillOpacity = ~grid_opacity,
+              stroke = T,
+              weight = 1,
+              label = ~paste0("geo_id: ", geo_index_compare, "\n", "Distance: ", round(distance,0)),
+              highlightOptions = highlightOptions(color = "white", bringToFront = T)) %>%
+  addLegend("bottomright", pal = pal, values = ~distance,
+            title = "Distance",
+            opacity = 1)
+

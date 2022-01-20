@@ -71,7 +71,7 @@ geo_id_index <- geo_id_index %>%
   select(-c(x_num, y_num, x, y))
 
 #choose one geo_index to test
-select_geo_index <- 23
+select_geo_index <- 45
 
 reference_coords <- geo_id_index %>% 
   filter(geo_index == select_geo_index) %>% 
@@ -142,14 +142,17 @@ similarity_geo <- similarity_geo %>%
 
 similarity_geo %>% 
   ggplot(aes(x, y, label = geo_index_compare)) +
-  geom_text()
+  geom_text() +
+  facet_wrap(~month)
 
 similarity_geo %>% 
+  filter(month == "Oct") %>% 
   ggplot(aes(x, y)) +
   geom_raster(aes(fill = distance)) +
   scale_fill_viridis_c()
 
 similarity_geo %>% 
+  filter(month == "Oct") %>% 
   ggplot() +
   geom_sf(aes(fill = distance)) +
   geom_sf(data = region_shape_moll, alpha = 0) +
@@ -161,6 +164,7 @@ similarity_geo %>%
 
 #doesnt work with leaflet crs
 similarity_geo %>% 
+  filter(month == "Oct") %>% 
   st_transform(crs = "EPSG:4326") %>% 
   mapdeck() %>% 
   add_sf(fill_colour = "distance",
@@ -176,18 +180,22 @@ pal <- colorNumeric(
   domain = similarity_geo$distance)
 
 similarity_geo %>% 
-  mutate(grid_opacity = case_when(highlight_grid == T ~ .3,
-                                  highlight_grid == F ~ .99)) %>%
+  filter(month == "Oct") %>% 
+  mutate(grid_opacity = case_when(highlight_grid == T ~ .1,
+                                  highlight_grid == F ~ .8)) %>%
   st_transform(crs = "EPSG:4326") %>% 
   leaflet() %>%
   addProviderTiles(providers$Stamen.TonerLite,
                    options = providerTileOptions(noWrap = TRUE)) %>%
   addPolygons(layerId = ~geometry,
+              color = "#444444",
               fillColor = ~pal(distance),
               fillOpacity = ~grid_opacity,
-              stroke = F,
+              stroke = T,
               weight = 1,
-              popup = ~geo_id_index) %>%
+              label = ~paste0("geo_id: ", geo_index_compare, "\n", "Distance: ", round(distance,0)),
+              highlightOptions = highlightOptions(color = "white", bringToFront = T)) %>%
   addLegend("bottomright", pal = pal, values = ~distance,
             title = "Distance",
             opacity = 1)
+
