@@ -91,11 +91,11 @@ similarity_geo_binned %>%
   facet_wrap(~month, ncol = 2, scales = "free") +
   scale_fill_viridis_d()
 
-pal <- colorNumeric(
+pal <- colorFactor(
   palette = "viridis",
-  domain = similarity_geo$distance)
+  domain = similarity_geo_binned$distance_bin)
 
-similarity_geo %>% 
+similarity_geo_binned %>% 
   filter(month == "Oct") %>% 
   mutate(grid_opacity = case_when(highlight_grid == T ~ .1,
                                   highlight_grid == F ~ .8)) %>%
@@ -105,13 +105,13 @@ similarity_geo %>%
                    options = providerTileOptions(noWrap = TRUE)) %>%
   addPolygons(layerId = ~geometry,
               color = "#444444",
-              fillColor = ~pal(distance),
+              fillColor = ~pal(distance_bin),
               fillOpacity = ~grid_opacity,
               stroke = T,
               weight = 1,
-              label = ~paste0("geo_id: ", geo_index_compare, "\n", "Distance: ", round(distance,0)),
+              popup = ~paste0("geo_id: ", geo_index_compare, "\n", "Dissimilarity: ", round(distance,0)),
               highlightOptions = highlightOptions(color = "white", bringToFront = T)) %>%
-  addLegend("bottomright", pal = pal, values = ~distance,
-            title = "Distance",
+  addLegend("bottomright", pal = pal, values = ~distance_bin,
+            title = "Dissimilarity from selected tile",
             opacity = 1)
 

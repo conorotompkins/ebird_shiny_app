@@ -29,13 +29,7 @@ ui <- shinyUI(
                               label = "Select Month",
                               choices = month.abb),
         textOutput("text"),
-        verbatimTextOutput("clicked_grid_id"),
-        numericInput(inputId = "geo_index_compare_input",
-                     label = "geo_index_compare",
-                     value = 45,
-                     min = 1,
-                     max = 298,
-                     step = 1),
+        verbatimTextOutput("mouse_interactions"),
         sliderInput("transparency_slider_input",
                     "Tile Transparency",
                     min = 0,
@@ -46,7 +40,7 @@ ui <- shinyUI(
       
       column(
         width = 10,
-        plotOutput("chloropleth_map", click = "plot_click"),
+        leafletOutput("chloropleth_map"),
         plotOutput("histogram")
       )
     )
