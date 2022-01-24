@@ -20,7 +20,7 @@ ggVennDiagram(x) + scale_fill_gradient(low="blue",high = "red")
 similarity_index <- vroom("data/big/similarity_index.csv")
 
 similarity_geo <- similarity_index %>% 
-  prep_similarity_index(265) %>% 
+  prep_similarity_index(45) %>% 
   mutate(month = fct_relevel(month, month.abb))
 
 similarity_geo %>% 
@@ -39,13 +39,13 @@ abunds_table <- list.files("data/big/species_abundance", full.names = T) %>%
   mutate(geo_id = str_c(x, y, sep = "_"))
 
 reference <- similarity_geo %>% 
-  filter(geo_index_reference == 265) %>% 
+  filter(geo_index_reference == 45) %>% 
   distinct(geo_index_reference, geo_id_reference) %>% 
   pull(geo_id_reference)
 
 compare <- similarity_geo %>% 
-  mutate(geo_id_compare = str_c(x, y, sep = "_")) %>% 
-  filter(geo_index_compare == 45) %>% 
+  #mutate(geo_id_compare = str_c(x, y, sep = "_")) %>% 
+  filter(geo_index_compare == 26) %>% 
   distinct(geo_index_compare, geo_id_compare) %>% 
   pull(geo_id_compare)
 
