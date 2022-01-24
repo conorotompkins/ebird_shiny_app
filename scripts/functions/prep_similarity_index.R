@@ -1,8 +1,13 @@
+library(tidyverse)
+library(sf)
+library(tictoc)
+
 #function to prepare similarity index data for graphing
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
 prep_similarity_index <- function(similarity_index_data, select_geo_index = 16){
   
+  tic()
   #reference is the geo_id of interest
   #compare are the geo_ids we are comparing to the reference_geo_id
   similarity_index <- similarity_index_data %>% 
@@ -38,13 +43,7 @@ prep_similarity_index <- function(similarity_index_data, select_geo_index = 16){
     #filter on the select_geo_index
     filter(geo_id_reference == pull(reference_coords)) %>% 
     #separe geo_id_compare into x and y cols
-    separate(geo_id_compare, into = c("x_compare", "y_compare"), sep = "_")
-
-  #turn reference x,y into sf coordinates
-  # reference_coords <- reference_coords %>% 
-  #   separate(geo_id, into = c("x", "y"), sep = "_") %>% 
-  #   mutate(across(everything(), as.numeric)) %>% 
-  #   st_as_sf(coords = c("x", "y"), crs = mollweide)
+    separate(geo_id_compare, into = c("x_compare", "y_compare"), sep = "_", remove = F)
 
   similarity_geo <- similarity_geo %>% 
     #turn compare x,y into sf coordinates
@@ -55,7 +54,7 @@ prep_similarity_index <- function(similarity_index_data, select_geo_index = 16){
     rename(geo_index_reference = geo_index) %>% 
     mutate(highlight_grid = geo_index_compare == select_geo_index) %>% 
     #reorder variables
-    select(month, geo_id_reference, geo_index_reference, geometry, geo_index_compare, distance, highlight_grid)
+    select(month, geo_id_reference, geo_index_reference, geometry, geo_id_compare, geo_index_compare, distance, highlight_grid)
   
   similarity_geo <- similarity_geo %>% 
     #calculate x,y from coordinate
@@ -65,8 +64,6 @@ prep_similarity_index <- function(similarity_index_data, select_geo_index = 16){
                                 dist = 26700/2,
                                 endCapStyle = "SQUARE"))
   
-  #similarity_geo <- similarity_geo# %>% 
-    #mutate(highlight_grid = geo_index_compare == select_geo_index)
-  
+  toc()
   return(similarity_geo)
 }
