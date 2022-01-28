@@ -7,6 +7,8 @@ library(ggVennDiagram)
 library(sf)
 
 source("scripts/functions/prep_similarity_index.R")
+source("scripts/functions/create_venn_diagram.R")
+
 
 genes <- paste("gene",1:1000,sep="")
 set.seed(20210419)
@@ -81,3 +83,5 @@ ggVennDiagram(venn_list) +
   labs(fill = "Distinct Species") +
   scale_fill_viridis_c() +
   scale_color_manual(values = c("#FFFFFF", "#FFFFFF"))
+
+create_venn_diagram(reference, compare)
