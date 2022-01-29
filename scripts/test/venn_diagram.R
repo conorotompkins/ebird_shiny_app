@@ -84,4 +84,4 @@ ggVennDiagram(venn_list) +
   scale_fill_viridis_c() +
   scale_color_manual(values = c("#FFFFFF", "#FFFFFF"))
 
-create_venn_diagram(reference, compare)
+create_venn_diagram(45, 265, similarity_df = similarity_geo, table = abunds_table)
