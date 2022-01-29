@@ -1,6 +1,9 @@
 library(shiny)
 
 library(tidyverse)
+library(vroom)
+library(tools)
+library(lubridate)
 
 library(sf)
 library(tigris)
@@ -13,6 +16,10 @@ theme_set(theme_ipsum())
 options(tigris_use_cache = TRUE)
 
 source("scripts/functions/prep_similarity_index.R")
+source("scripts/functions/create_venn_diagram.R")
+
+#load abunds_table
+abunds_table <- vroom("data/big/abunds_table.csv")
 
 #create similarity index
 #load similarity index data
@@ -124,7 +131,7 @@ server <- shinyServer(function(input, output, session) {
   })
   
   mouseover_grid_id_reactive <- reactive({
-    
+
     input$chloropleth_map_shape_mouseover$id
     
   })
@@ -194,6 +201,18 @@ server <- shinyServer(function(input, output, session) {
       guides(fill = "none") +
       labs(x = "Dissimilarity")
     
+  })
+  
+  #calculate time since leaflet mouseover changed. if that time is > 3 seconds, render venn diagram
+  
+  output$venn_diagram <- renderPlot({
+
+    reference <- selected_grid_id_reactive()
+
+    compare <- mouseover_grid_id_reactive()
+    
+    create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
+
   })
   
 })
