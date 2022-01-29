@@ -1,20 +1,20 @@
 library(tidyverse)
 library(ggVennDiagram)
 
-create_venn_diagram <- function(reference_id, compare_id){
+create_venn_diagram <- function(reference_id, compare_id, similarity_df, table){
   
-  reference <- similarity_geo %>% 
-    filter(geo_index_reference == 45) %>% 
+  reference <- similarity_df %>% 
+    filter(geo_index_reference == reference_id) %>% 
     distinct(geo_index_reference, geo_id_reference) %>% 
     pull(geo_id_reference)
   
-  compare <- similarity_geo %>% 
+  compare <- similarity_df %>% 
     #mutate(geo_id_compare = str_c(x, y, sep = "_")) %>% 
-    filter(geo_index_compare == 26) %>% 
+    filter(geo_index_compare == compare_id) %>% 
     distinct(geo_index_compare, geo_id_compare) %>% 
     pull(geo_id_compare)
   
-  reference_list <- abunds_table %>% 
+  reference_list <- table %>% 
     filter(geo_id == reference) %>% 
     group_by(comName) %>% 
     summarize(appears = sum(abundance > 0)) %>% 
@@ -23,7 +23,7 @@ create_venn_diagram <- function(reference_id, compare_id){
     distinct(comName) %>% 
     pull(comName)
   
-  compare_list <- abunds_table %>% 
+  compare_list <- table %>% 
     filter(geo_id == compare) %>% 
     group_by(comName) %>% 
     summarize(appears = sum(abundance > 0)) %>% 
