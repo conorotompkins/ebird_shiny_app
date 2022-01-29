@@ -24,7 +24,7 @@ ui <- shinyUI(
     mainPanel(
       
       column(
-        width = 2,
+        width = 7,
         shiny::selectizeInput("month_input",
                               label = "Select Month",
                               choices = month.abb),
@@ -35,12 +35,13 @@ ui <- shinyUI(
                     min = 0,
                     max = 1,
                     value = 1,
-                    step = .25)
+                    step = .25),
+        leafletOutput("chloropleth_map")
       ),
       
       column(
-        width = 10,
-        leafletOutput("chloropleth_map"),
+        width = 5,
+        plotOutput("venn_diagram"),
         plotOutput("histogram")
       )
     )
