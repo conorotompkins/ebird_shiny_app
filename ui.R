@@ -41,6 +41,10 @@ ui <- shinyUI(
       
       column(
         width = 5,
+        radioButtons("toggle_venn_diagram", 
+                     "Toggle Venn Diagram",
+                     choices = c("On", "Off"),
+                     selected = "Off"),
         plotOutput("venn_diagram"),
         plotOutput("histogram")
       )

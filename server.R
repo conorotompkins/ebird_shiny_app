@@ -181,15 +181,17 @@ server <- shinyServer(function(input, output, session) {
   })
   
   #calculate time since leaflet mouseover changed. if that time is > 3 seconds, render venn diagram
-  
   output$venn_diagram <- renderPlot({
-
+    
+    if (input$toggle_venn_diagram == "On") {
+    
     reference <- selected_grid_id_reactive()
-
+    
     compare <- mouseover_grid_id_reactive()
-
+    
     create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
-
+    } else NULL
+    
   })
   
 })
