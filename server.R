@@ -118,10 +118,7 @@ server <- shinyServer(function(input, output, session) {
                   stroke = T,
                   weight = 1,
                   fillOpacity = 0
-      ) %>% 
-      addLayersControl(overlayGroups = c("Tiles", "Chloropleth", "Legend"),
-                       options = layersControlOptions(#autoZIndex = T,
-                                                      collapsed = FALSE))
+      )
     
   })
   
@@ -169,34 +166,6 @@ server <- shinyServer(function(input, output, session) {
                   fillColor = "white",
                   fillOpacity = 1,
                   dashArray = "1")
-  })
-  
-  observe({
-    
-    req(input$chloropleth_map_shape_click$id)
-    
-    similarity_grid_distance <- similarity_grid_reactive() %>%
-      st_transform(crs = "EPSG:4326")
-    
-    pal <- colorFactor(
-      palette = "viridis",
-      domain = similarity_grid_distance$distance_bin)
-    
-    # Remove any existing legend, and only if the legend is
-    # enabled, create a new one.
-    proxy <- leafletProxy("chloropleth_map", data = similarity_grid_distance)
-    
-    proxy %>% clearControls()
-    
-    proxy %>% 
-      addLegend(group = "Legend",
-                pal = pal, 
-                values = ~distance_bin, 
-                opacity = 0.7, 
-                #labFormat = labelFormat(suffix = "%"),
-                title = "Dissimilarity from selected area",
-                position = "bottomright")
-    
   })
   
   output$histogram <- renderPlot({
