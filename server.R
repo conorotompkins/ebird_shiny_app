@@ -113,14 +113,15 @@ server <- shinyServer(function(input, output, session) {
       addProviderTiles(providers$Stamen.TonerLite,
                        options = providerTileOptions(noWrap = TRUE
                        )) %>%
-      addPolygons(group = "tiles",
+      addPolygons(group = "Tiles",
                   layerId = ~geo_index_compare,
                   stroke = T,
-                  weight = 1) %>% 
-      addLayersControl(overlayGroups = c("Tiles", "Legend"),
-                       #autoZIndex = T,
-                       options = layersControlOptions(collapsed = FALSE))
-    
+                  weight = 1,
+                  fillOpacity = 0
+      ) %>% 
+      addLayersControl(overlayGroups = c("Tiles", "Chloropleth", "Legend"),
+                       options = layersControlOptions(#autoZIndex = T,
+                                                      collapsed = FALSE))
     
   })
   
@@ -131,7 +132,7 @@ server <- shinyServer(function(input, output, session) {
   })
   
   mouseover_grid_id_reactive <- reactive({
-
+    
     input$chloropleth_map_shape_mouseover$id
     
   })
@@ -149,9 +150,12 @@ server <- shinyServer(function(input, output, session) {
       palette = "viridis",
       domain = similarity_grid_distance$distance_bin)
     
+    highlight_cell <- similarity_grid_distance %>% 
+      filter(geo_index_compare == geo_index_reference)
+    
     leafletProxy("chloropleth_map", data = similarity_grid_distance) %>%
-      clearGroup("Tiles") %>%
-      addPolygons(group = "Tiles",
+      clearGroup("Chloropleth") %>%
+      addPolygons(group = "Chloropleth",
                   layerId = ~geo_index_compare,
                   color = "#444444",
                   fillColor = ~pal(distance_bin),
@@ -159,8 +163,12 @@ server <- shinyServer(function(input, output, session) {
                   stroke = T,
                   weight = 1,
                   label = ~paste0("geo_id: ", geo_index_compare, "\n", "Dissimilarity: ", round(distance,0)),
-                  highlightOptions = highlightOptions(color = "white", bringToFront = T))
-    
+                  highlightOptions = highlightOptions(color = "white", bringToFront = T)) %>% 
+      addPolygons(data = highlight_cell,
+                  color = "white",
+                  fillColor = "white",
+                  fillOpacity = 1,
+                  dashArray = "1")
   })
   
   observe({
@@ -210,7 +218,7 @@ server <- shinyServer(function(input, output, session) {
     reference <- selected_grid_id_reactive()
 
     compare <- mouseover_grid_id_reactive()
-    
+
     create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
 
   })
