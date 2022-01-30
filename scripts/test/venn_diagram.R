@@ -81,7 +81,11 @@ venn_list <- list("Reference" = reference_list, "Compare" = compare_list)
 
 ggVennDiagram(venn_list) +
   labs(fill = "Distinct Species") +
-  scale_fill_viridis_c() +
-  scale_color_manual(values = c("#FFFFFF", "#FFFFFF"))
+  scale_fill_gradient(low = "grey",
+                      high = "black",
+                      guide = guide_colorbar(direction = "horizontal",
+                                         title.position = "bottom")) +
+  scale_color_manual(values = c("#FFFFFF", "#FFFFFF")) +
+  theme(legend.position = "bottom")
 
 create_venn_diagram(45, 265, similarity_df = similarity_geo, table = abunds_table)
