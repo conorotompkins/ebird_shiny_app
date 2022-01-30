@@ -23,31 +23,38 @@ ui <- shinyUI(
     # Show a plot of the generated distribution
     mainPanel(
       
-      shiny::selectizeInput("month_input",
-                            label = "Select Month",
-                            choices = month.abb),
-      sliderInput("transparency_slider_input",
-                  "Tile Transparency",
-                  min = 0,
-                  max = 1,
-                  value = 1,
-                  step = .25),
-      
-      column(
-        width = 7,
-        leafletOutput("chloropleth_map"),
-        verbatimTextOutput("mouse_interactions")
-      ),
-      
-      column(
-        width = 5,
-        radioButtons("toggle_venn_diagram", 
-                     "Toggle Venn Diagram",
-                     choices = c("On", "Off"),
-                     selected = "Off"),
-        plotOutput("venn_diagram"),
-        plotOutput("histogram")
+      fluidRow(
+        column(
+          width = 2,
+          shiny::selectizeInput("month_input",
+                                label = "Select Month",
+                                choices = month.abb),
+          sliderInput("transparency_slider_input",
+                      "Tile Transparency",
+                      min = 0,
+                      max = 1,
+                      value = 1,
+                      step = .25),
+          verbatimTextOutput("mouse_interactions"),
+          radioButtons("toggle_venn_diagram", 
+                       "Toggle Venn Diagram",
+                       choices = c("On", "Off"),
+                       selected = "Off")
+        ),
+        column(
+          width = 7,
+          
+          leafletOutput("chloropleth_map"),
+          plotOutput("histogram")
+        ),
+        column(
+          
+          width = 3,
+          
+          plotOutput("venn_diagram")
+          
+        )
       )
     )
   )
-)
+) 
