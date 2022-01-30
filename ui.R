@@ -23,20 +23,20 @@ ui <- shinyUI(
     # Show a plot of the generated distribution
     mainPanel(
       
+      shiny::selectizeInput("month_input",
+                            label = "Select Month",
+                            choices = month.abb),
+      sliderInput("transparency_slider_input",
+                  "Tile Transparency",
+                  min = 0,
+                  max = 1,
+                  value = 1,
+                  step = .25),
+      
       column(
         width = 7,
-        shiny::selectizeInput("month_input",
-                              label = "Select Month",
-                              choices = month.abb),
-        textOutput("text"),
-        verbatimTextOutput("mouse_interactions"),
-        sliderInput("transparency_slider_input",
-                    "Tile Transparency",
-                    min = 0,
-                    max = 1,
-                    value = 1,
-                    step = .25),
-        leafletOutput("chloropleth_map")
+        leafletOutput("chloropleth_map"),
+        verbatimTextOutput("mouse_interactions")
       ),
       
       column(
