@@ -80,11 +80,17 @@ server <- shinyServer(function(input, output, session) {
     
     req(selected_grid_id_reactive())
     
+    bins <- seq(from = -1, to = 1, by = .2)
+    
+    bin_labels <- c("-1 to -.8", ".8 to -.6", "6 to -.4", "-.4 to -.2", "-.2 to 0", 
+                    "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
+    
     similarity_index_reactive() %>%
       prep_similarity_index(selected_grid_id_reactive()) %>% 
-      mutate(distance_bin = cut(distance, breaks = bins, labels = bin_labels)) %>% 
-      complete(month, distance_bin = bin_labels) %>% 
-      st_sf() 
+      filter(!is.na(correlation)) %>%
+      mutate(correlation = round(correlation, 2),
+             correlation_bin = cut(correlation, breaks = bins, labels = bin_labels),
+             correlation_bin = as.factor(correlation_bin))
     
   })
   
@@ -134,34 +140,48 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
+  highlight_cell <- reactive({
+    
+    req(input$chloropleth_map_shape_click$id, similarity_grid_reactive())
+    
+    similarity_grid_reactive() %>%
+      st_transform(crs = "EPSG:4326") %>% 
+      filter(geo_index_compare == geo_index_reference)
+    
+  })
+  
   #observer for chloropleth
   observe({
     
     req(input$chloropleth_map_shape_click$id, similarity_grid_reactive())
     
-    similarity_grid_distance <- similarity_grid_reactive() %>%
+    bin_labels <- c("-1 to -.8", ".8 to -.6", "6 to -.4", "-.4 to -.2", "-.2 to 0", 
+                    "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
+    
+    similarity_grid_corr <- similarity_grid_reactive() %>%
       st_transform(crs = "EPSG:4326") %>% 
-      mutate(grid_opacity = input$transparency_slider_input)
+      mutate(grid_opacity = input$transparency_slider_input) %>% 
+      complete(correlation_bin = bin_labels) %>% 
+      mutate(correlation_bin = factor(correlation_bin, levels = bin_labels)) %>% 
+      st_as_sf()
     
-    pal <- colorFactor(
-      palette = "viridis",
-      domain = similarity_grid_distance$distance_bin)
+    pal_d <- colorFactor(
+      palette = viridis::viridis(110),
+      domain = similarity_grid_corr$correlation_bin,
+      levels = bin_labels)
     
-    highlight_cell <- similarity_grid_distance %>% 
-      filter(geo_index_compare == geo_index_reference)
-    
-    leafletProxy("chloropleth_map", data = similarity_grid_distance) %>%
+    leafletProxy("chloropleth_map", data = similarity_grid_corr) %>%
       clearGroup("Chloropleth") %>%
       addPolygons(group = "Chloropleth",
                   layerId = ~geo_index_compare,
                   color = "#444444",
-                  fillColor = ~pal(distance_bin),
+                  fillColor = ~pal_d(correlation_bin),
                   fillOpacity = ~grid_opacity,
                   stroke = T,
                   weight = 1,
-                  label = ~paste0("geo_id: ", geo_index_compare, "\n", "Dissimilarity: ", round(distance,0)),
+                  label = ~paste0("geo_id: ", geo_index_compare, "\n", "Correlation: ", round(correlation,4)),
                   highlightOptions = highlightOptions(color = "white", bringToFront = T)) %>% 
-      addPolygons(data = highlight_cell,
+      addPolygons(data = highlight_cell(),
                   color = "white",
                   fillColor = "white",
                   fillOpacity = 1,
@@ -170,13 +190,29 @@ server <- shinyServer(function(input, output, session) {
   
   output$histogram <- renderPlot({
     
-    similarity_grid_reactive() %>% 
-      count(month, distance_bin) %>% 
-      ggplot(aes(distance_bin, n, fill = distance_bin)) +
+    bin_labels <- c("-1 to -.8", ".8 to -.6", "6 to -.4", "-.4 to -.2", "-.2 to 0", 
+                    "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
+    
+    ws <- str_c(rep(" ", 85), collapse = "")
+    
+    x_label <- str_c("Less Similar", ws, "More Similar")
+    
+    similarity_grid_reactive() %>%
+      st_drop_geometry() %>% 
+      mutate(correlation_bin = factor(correlation_bin, levels = bin_labels)) %>% 
+      count(month, correlation_bin, .drop = F) %>% 
+      ggplot(aes(correlation_bin, n, fill = correlation_bin)) +
       geom_col() +
       scale_fill_viridis_d() +
       guides(fill = "none") +
-      labs(x = "Dissimilarity")
+      labs(title = "Correlation",
+           #x = x_label,
+           y = "Count of Areas") +
+      theme(axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"), 
+                                                           ends = "both")),
+            axis.title.x = element_text(angle = 0, size = 15),
+            axis.title.y = element_text(size = 15))
+      
     
   })
   
@@ -184,12 +220,12 @@ server <- shinyServer(function(input, output, session) {
   output$venn_diagram <- renderPlot({
     
     if (input$toggle_venn_diagram == "On") {
-    
-    reference <- selected_grid_id_reactive()
-    
-    compare <- mouseover_grid_id_reactive()
-    
-    create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
+      
+      reference <- selected_grid_id_reactive()
+      
+      compare <- mouseover_grid_id_reactive()
+      
+      create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
     } else NULL
     
   })
