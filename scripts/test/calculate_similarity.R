@@ -215,6 +215,12 @@ pairwise_dist_f <- function(x){
   
 }
 
+pairwise_corr_f <- function(x){
+  
+  pairwise_cor(tbl = x, item = geo_id, feature = comName, value = abundance,
+               diag = T, upper = T)
+}
+
 #each geo_id_1 in similarity_index should have 342 geo_id_2s
 abundance_summary %>% 
   st_drop_geometry() %>% 
@@ -227,7 +233,7 @@ similarity_index <- abundance_summary %>%
   select(month, geo_id, comName, abundance) %>% 
   #for future development
   group_nest(month) %>%
-  mutate(dist_data = map(data, pairwise_dist_f)) %>% 
+  mutate(dist_data = map(data, pairwise_corr_f)) %>% 
   select(-data) %>% 
   unnest(dist_data) %>% 
   #pairwise_dist(geo_id, comName, abundance, diag = T, upper = T) %>% 
@@ -259,7 +265,7 @@ similarity_index %>%
   distinct(n)
 
 similarity_index %>% 
-  ggplot(aes(distance)) +
+  ggplot(aes(correlation)) +
   geom_histogram() +
   facet_wrap(~month)
 
