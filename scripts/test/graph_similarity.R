@@ -9,7 +9,6 @@ set.seed(1234)
 options(tigris_use_cache = TRUE)
 
 source("scripts/functions/prep_similarity_index.R")
-source("scripts/functions/recreate_tile.R")
 
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
@@ -108,7 +107,7 @@ similarity_geo <- similarity_geo %>%
   left_join(geo_id_index, by = c("geo_id_reference" = "geo_id")) %>% 
   rename(geo_index_reference = geo_index) %>% 
   #reorder variables
-  select(month, geo_id_reference, geo_index_reference, geometry, geo_index_compare, distance)
+  select(month, geo_id_reference, geo_index_reference, geometry, geo_index_compare, correlation)
 
 similarity_geo <- similarity_geo %>% 
   #calculate x,y from coordinate
@@ -127,14 +126,6 @@ similarity_geo <- similarity_geo %>%
 similarity_geo %>% 
   filter(highlight_grid == T)
 
-similarity_geo %>% 
-  st_drop_geometry() %>% 
-  select(x, y) %>% 
-  recreate_tile() %>% 
-  ggplot() +
-  geom_sf() +
-  geom_point(aes(x, y))
-
 similarity_geo <- similarity_geo %>% 
   mutate(geometry = st_buffer(geometry, 
                               dist = 26700/2,
@@ -148,26 +139,26 @@ similarity_geo %>%
 similarity_geo %>% 
   filter(month == "Oct") %>% 
   ggplot(aes(x, y)) +
-  geom_raster(aes(fill = distance)) +
-  scale_fill_viridis_c()
+  geom_raster(aes(fill = correlation)) +
+  scale_fill_viridis_c(direction = -1)
 
 similarity_geo %>% 
   filter(month == "Oct") %>% 
   ggplot() +
-  geom_sf(aes(fill = distance)) +
+  geom_sf(aes(fill = correlation)) +
   geom_sf(data = region_shape_moll, alpha = 0) +
   geom_point(data = filter(similarity_geo, highlight_grid == T),
              aes(x, y), 
              color = "white") +
-  scale_fill_viridis_c(direction = 1) +
+  scale_fill_viridis_c(direction = -1) +
   labs(fill = "Distance")
 
-#doesnt work with leaflet crs
+#leaflet
 similarity_geo %>% 
   filter(month == "Oct") %>% 
   st_transform(crs = "EPSG:4326") %>% 
   mapdeck() %>% 
-  add_sf(fill_colour = "distance",
+  add_sf(fill_colour = "correlation",
          fill_opacity = .8,
          stroke_colour = "highlight_grid",
          legend = T,
@@ -177,7 +168,7 @@ similarity_geo %>%
 
 pal <- colorNumeric(
   palette = "viridis",
-  domain = similarity_geo$distance)
+  domain = similarity_geo$correlation)
 
 similarity_geo %>% 
   filter(month == "Oct") %>% 
@@ -189,13 +180,13 @@ similarity_geo %>%
                    options = providerTileOptions(noWrap = TRUE)) %>%
   addPolygons(layerId = ~geometry,
               color = "#444444",
-              fillColor = ~pal(distance),
+              fillColor = ~pal(correlation),
               fillOpacity = ~grid_opacity,
               stroke = T,
               weight = 1,
-              label = ~paste0("geo_id: ", geo_index_compare, "\n", "Distance: ", round(distance,0)),
+              label = ~paste0("geo_id: ", geo_index_compare, "\n", "Correlation: ", round(correlation,0)),
               highlightOptions = highlightOptions(color = "white", bringToFront = T)) %>%
-  addLegend("bottomright", pal = pal, values = ~distance,
-            title = "Distance",
+  addLegend("bottomright", pal = pal, values = ~correlation,
+            title = "Correlation",
             opacity = 1)
 

@@ -54,7 +54,7 @@ prep_similarity_index <- function(similarity_index_data, select_geo_index = 16){
     rename(geo_index_reference = geo_index) %>% 
     mutate(highlight_grid = geo_index_compare == select_geo_index) %>% 
     #reorder variables
-    select(month, geo_id_reference, geo_index_reference, geometry, geo_id_compare, geo_index_compare, distance, highlight_grid)
+    select(month, geo_id_reference, geo_index_reference, geometry, geo_id_compare, geo_index_compare, correlation, highlight_grid)
   
   similarity_geo <- similarity_geo %>% 
     #calculate x,y from coordinate

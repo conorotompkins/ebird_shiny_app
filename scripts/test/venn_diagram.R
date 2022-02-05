@@ -30,15 +30,7 @@ similarity_geo %>%
   ggplot(aes(x, y, label = geo_index_compare)) +
   geom_text()
 
-abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
-  set_names() %>% 
-  map_dfr(vroom, delim = ",", .id = 'comName') %>% 
-  mutate(comName = basename(comName) %>% file_path_sans_ext,
-         month = month(date, label = T)) %>% 
-  mutate(x = round(x, 2),
-         y = round(y, 2)) %>% 
-  rename(abundance = value) %>% 
-  mutate(geo_id = str_c(x, y, sep = "_"))
+abunds_table <- vroom("data/big/abunds_table.csv")
 
 reference <- similarity_geo %>% 
   filter(geo_index_reference == 45) %>% 
@@ -81,11 +73,15 @@ venn_list <- list("Reference" = reference_list, "Compare" = compare_list)
 
 ggVennDiagram(venn_list) +
   labs(fill = "Distinct Species") +
-  scale_fill_gradient(low = "grey",
-                      high = "black",
-                      guide = guide_colorbar(direction = "horizontal",
-                                         title.position = "bottom")) +
+  scale_fill_stepsn(colors = grey.colors(5),
+                    breaks = c(seq(from = 0, to = 90, by = 20), Inf),
+                    guide = guide_colorbar(direction = "horizontal",
+                                           title.position = "bottom")) +
+  # scale_fill_gradient_n(low = "grey",
+  #                     high = "black",
+  #                     guide = guide_colorbar(direction = "horizontal",
+  #                                        title.position = "bottom")) +
   scale_color_manual(values = c("#FFFFFF", "#FFFFFF")) +
   theme(legend.position = "bottom")
 
-create_venn_diagram(45, 265, similarity_df = similarity_geo, table = abunds_table)
+create_venn_diagram(45, 200, similarity_df = similarity_geo, table = abunds_table)
