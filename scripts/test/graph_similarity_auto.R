@@ -106,6 +106,22 @@ plot <- similarity_geo_binned %>%
 str(plot)
 
 similarity_geo_binned %>% 
+  st_drop_geometry() %>% 
+  mutate(correlation_bin = factor(correlation_bin, levels = bin_labels)) %>% 
+  count(month, correlation_bin, .drop = F) %>% 
+  ggplot(aes(correlation_bin, n, fill = correlation_bin)) +
+  geom_col() +
+  scale_fill_viridis_d() +
+  guides(fill = "none") +
+  labs(title = "Correlation",
+       #x = x_label,
+       y = "Count of Areas") +
+  theme(axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"), 
+                                                       ends = "both")),
+        axis.title.x = element_text(angle = 0, size = 15),
+        axis.title.y = element_text(size = 15))
+
+similarity_geo_binned %>% 
   ggplot(aes(correlation, fill = correlation_bin)) +
   geom_histogram(bins = 100) +
   geom_rug() +
@@ -128,6 +144,9 @@ base_map_data <- similarity_geo_binned %>%
 
 similarity_geo_binned %>% 
   filter(month == "May") %>% 
+  complete(correlation_bin = bin_labels) %>% 
+  mutate(correlation_bin = factor(correlation_bin, levels = bin_labels)) %>% 
+  st_as_sf() %>% 
   mutate(grid_opacity = case_when(highlight_grid == T ~ .1,
                                   highlight_grid == F ~ .8)) %>%
   st_transform(crs = "EPSG:4326") %>% 
@@ -143,6 +162,6 @@ similarity_geo_binned %>%
               popup = ~paste0("geo_id: ", geo_index_compare, "\n", "Correlation: ", round(correlation, 2)),
               highlightOptions = highlightOptions(color = "white", bringToFront = T)) %>%
   addLegend("bottomright", pal = pal_d, values = ~correlation_bin,
-            title = "Correlation with selected tile",
+            title = "Correlation with clicked tile",
             opacity = 1)
 
