@@ -20,28 +20,39 @@ ui <- shinyUI(
     
     # Application title
     titlePanel("eBird Region Similarity Index"),
+    h5("Click a tile in the map to get started"),
     # Show a plot of the generated distribution
     mainPanel(
       
       fluidRow(
         column(
-          width = 2,
-          shiny::selectizeInput("month_input",
-                                label = "Select Month",
-                                choices = month.abb),
-          sliderInput("transparency_slider_input",
-                      "Tile Transparency",
-                      min = 0,
-                      max = 1,
-                      value = 1,
-                      step = .25),
-          verbatimTextOutput("mouse_interactions")
-        ),
-        column(
-          width = 7,
+          width = 9,
+          
+          column(width = 6,
+                 
+                 sliderTextInput(inputId = "month_input",
+                                 label = "Select Month",
+                                 choices = month.abb,
+                                 selected = lubridate::month(Sys.Date(), label = T),
+                                 animate = animationOptions(interval = 3000)
+                                 )
+                 
+          ),
+          column(width = 6,
+                 
+                 sliderInput("transparency_slider_input",
+                             "Tile Transparency",
+                             min = 0,
+                             max = 1,
+                             value = .5,
+                             step = .1)
+                 
+          ),
+          #verbatimTextOutput("mouse_interactions")
           
           leafletOutput("chloropleth_map"),
           plotOutput("histogram", height = 300)
+          
         ),
         column(
           
