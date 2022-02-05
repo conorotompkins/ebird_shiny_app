@@ -193,7 +193,7 @@ server <- shinyServer(function(input, output, session) {
     bin_labels <- c("-1 to -.8", ".8 to -.6", "6 to -.4", "-.4 to -.2", "-.2 to 0", 
                     "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
     
-    ws <- str_c(rep(" ", 85), collapse = "")
+    ws <- str_c(rep(" ", 135), collapse = "")
     
     x_label <- str_c("Less Similar", ws, "More Similar")
     
@@ -206,8 +206,8 @@ server <- shinyServer(function(input, output, session) {
       scale_fill_viridis_d() +
       guides(fill = "none") +
       labs(title = "Correlation",
-           #x = x_label,
-           y = "Count of Areas") +
+           x = x_label,
+           y = "Count of Regions") +
       theme(axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"), 
                                                            ends = "both")),
             axis.title.x = element_text(angle = 0, size = 15),
