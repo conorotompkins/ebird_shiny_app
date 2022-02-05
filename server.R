@@ -32,14 +32,6 @@ length(bin_labels)
 
 similarity_index <- read_csv("data/big/similarity_index.csv")
 
-# base_map_data <- similarity_index %>%
-#   prep_similarity_index(54) %>%
-#   select(geo_index_compare, geometry) %>%
-#   distinct(geo_index_compare, geometry)
-# 
-# base_map_data %>% 
-#   st_write("data/big/grid_shapefile/grid_shapefile.shp")
-
 base_map_data <- st_read("data/big/grid_shapefile/grid_shapefile.shp") %>% 
   set_names(c("geo_index_compare", "geometry"))
 
