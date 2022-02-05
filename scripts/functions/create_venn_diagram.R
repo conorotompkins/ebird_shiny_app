@@ -32,14 +32,14 @@ create_venn_diagram <- function(reference_id, compare_id, similarity_df, table){
     distinct(comName) %>% 
     pull(comName)
   
-  venn_list <- list("Reference" = reference_list, "Compare" = compare_list)
+  venn_list <- list("Clicked" = reference_list, "Hover" = compare_list)
   
   ggVennDiagram(venn_list) +
     labs(fill = "Distinct Species") +
-    scale_fill_gradient(low = "grey",
-                        high = "black",
-                        guide = guide_colorbar(direction = "horizontal",
-                                               title.position = "bottom")) +
+    scale_fill_stepsn(colors = grey.colors(5),
+                      breaks = c(seq(from = 0, to = 90, by = 20), Inf),
+                      guide = guide_colorbar(direction = "horizontal",
+                                             title.position = "bottom")) +
     scale_color_manual(values = c("#FFFFFF", "#FFFFFF")) +
     theme(legend.position = "bottom")
 }
