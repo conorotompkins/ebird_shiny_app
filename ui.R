@@ -35,22 +35,22 @@ ui <- shinyUI(
                       max = 1,
                       value = 1,
                       step = .25),
-          verbatimTextOutput("mouse_interactions"),
-          radioButtons("toggle_venn_diagram", 
-                       "Toggle Venn Diagram",
-                       choices = c("On", "Off"),
-                       selected = "Off")
+          verbatimTextOutput("mouse_interactions")
         ),
         column(
           width = 7,
           
           leafletOutput("chloropleth_map"),
-          plotOutput("histogram")
+          plotOutput("histogram", height = 300)
         ),
         column(
           
           width = 3,
           
+          radioButtons("toggle_venn_diagram", 
+                       "Toggle Venn Diagram",
+                       choices = c("On", "Off"),
+                       selected = "Off"),
           plotOutput("venn_diagram")
           
         )
