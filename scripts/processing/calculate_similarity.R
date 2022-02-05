@@ -33,7 +33,6 @@ region_shape_moll %>%
   geom_sf()
 
 abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
-  #keep(str_detect(., "Dark-eyed Junco")) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName', col_type = cols(.default = "c")) %>% 
   mutate(comName = basename(comName) %>% file_path_sans_ext,
@@ -288,7 +287,7 @@ similarity_index %>%
   st_as_sf(coords = c("x", "y"), crs = mollweide) %>% 
   ggplot() +
   geom_sf(data = region_shape_moll) +
-  geom_sf(aes(color = distance, stroke = compare_geo_id)) + 
+  geom_sf(aes(color = correlation, stroke = compare_geo_id)) + 
   #geom_sf(data = test_geo_id_1_sf, color = "red") +
   facet_wrap(~geo_id_1) +
   scale_color_viridis_c() +
