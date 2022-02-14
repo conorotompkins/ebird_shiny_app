@@ -32,7 +32,7 @@ create_venn_diagram <- function(reference_id, compare_id, similarity_df, table){
     distinct(comName) %>% 
     pull(comName)
   
-  venn_list <- list("Clicked" = reference_list, "Hover" = compare_list)
+  venn_list <- list("Reference" = reference_list, "Compare" = compare_list)
   
   ggVennDiagram(venn_list) +
     labs(fill = "Distinct Species") +

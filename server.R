@@ -62,15 +62,33 @@ server <- shinyServer(function(input, output, session) {
     
   })
   
-  # selected_grid_id_reactive <- reactive({
-  #   
-  #   input$geo_index_compare_input
-  #   
-  # })
+  #create reactive containing a list of two variables
+  #drives from toggle
+  #when toggle is "geo id 1", write to first value in list
+  #when toggle is "geo id 2", write to second value in list
+  #extract values from list to get geo ids
+  #### switch to reactiveVal containers and an observeEvent pattern ####
+  mouse_reference <- reactiveVal("")
+  mouse_compare <- reactiveVal("")    
+  
+  observeEvent(input$chloropleth_map_shape_click$id,{ 
+    
+    switch(input$mouse_interaction_type, 
+           "Reference" = mouse_reference(input$chloropleth_map_shape_click$id),
+           "Compare" = mouse_compare(input$chloropleth_map_shape_click$id)
+    )
+  })
+  
+  output$mouse_interactions <- renderText({
+    
+    str_c("Reference: ", mouse_reference(), "\n",
+          "Compare: ", mouse_compare(), sep = "")
+    
+  })
   
   similarity_grid_reactive <- reactive({
     
-    req(selected_grid_id_reactive())
+    req(mouse_reference())
     
     bins <- seq(from = -1, to = 1, by = .2)
     
@@ -78,7 +96,7 @@ server <- shinyServer(function(input, output, session) {
                     "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
     
     similarity_index_reactive() %>%
-      prep_similarity_index(selected_grid_id_reactive()) %>% 
+      prep_similarity_index(mouse_reference()) %>% 
       filter(!is.na(correlation)) %>%
       mutate(correlation = round(correlation, 2),
              correlation_bin = cut(correlation, breaks = bins, labels = bin_labels),
@@ -90,8 +108,8 @@ server <- shinyServer(function(input, output, session) {
     
     req(input$chloropleth_map_shape_click$id)
     
-    str_c("Click: ", selected_grid_id_reactive(), "\n",
-          "Hover: ", mouseover_grid_id_reactive(), sep = "")
+    str_c("Click: ", mouse_reference(), "\n",
+          "Hover: ", mouse_compare(), sep = "")
     
   })
   
@@ -204,21 +222,21 @@ server <- shinyServer(function(input, output, session) {
                                                            ends = "both")),
             axis.title.x = element_text(angle = 0, size = 15),
             axis.title.y = element_text(size = 15))
-      
+    
     
   })
   
   #calculate time since leaflet mouseover changed. if that time is > 3 seconds, render venn diagram
   output$venn_diagram <- renderPlot({
     
-    if (input$toggle_venn_diagram == "On") {
+    req(mouse_reference() != "",
+        mouse_compare() != "")
       
-      reference <- selected_grid_id_reactive()
+      reference <- mouse_reference()
       
-      compare <- mouseover_grid_id_reactive()
+      compare <- mouse_compare()
       
       create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
-    } else NULL
     
   })
   
