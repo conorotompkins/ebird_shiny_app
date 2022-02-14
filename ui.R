@@ -58,10 +58,13 @@ ui <- shinyUI(
           
           width = 3,
           
-          radioButtons("toggle_venn_diagram", 
-                       "Toggle Venn Diagram",
-                       choices = c("On", "Off"),
-                       selected = "Off"),
+          radioButtons(inputId = "mouse_interaction_type",
+                       label = "Select tiles to compare",
+                       choices = c("Reference", "Compare"),
+                       selected = "Reference",
+                       inline = T
+          ),
+          
           plotOutput("venn_diagram")
           
         )
