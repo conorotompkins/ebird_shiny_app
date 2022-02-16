@@ -4,11 +4,12 @@ library(vroom)
 library(tools)
 
 #load abunds_table
-abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
+abunds_table <- list.files("data/big/species_abundance", full.names = T, recursive = T) %>% 
   set_names() %>% 
   map_dfr(vroom, delim = ",", .id = 'comName',
           col_types = cols(
-            target_species = col_character(),
+            family_common_name = col_character(),
+            common_name = col_character(),
             metric_desc = col_character(),
             date = col_date(format = ""),
             value = col_double(),
@@ -22,7 +23,10 @@ abunds_table <- list.files("data/big/species_abundance", full.names = T) %>%
   mutate(x = round(x, 2),
          y = round(y, 2)) %>% 
   rename(abundance = value) %>% 
-  mutate(geo_id = str_c(x, y, sep = "_"))
+  mutate(geo_id = str_c(x, y, sep = "_")) %>% 
+  select(-comName)
+
+glimpse(abunds_table)
 
 abunds_table %>% 
   write_csv("data/big/abunds_table.csv")

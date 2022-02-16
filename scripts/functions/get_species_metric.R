@@ -18,9 +18,11 @@ select <- dplyr::select
 options(timeout = max(300, getOption("timeout")),
         tigris_use_cache = TRUE)
 
-get_species_metric <- function(region_input, target_species_var, metric, target_resoluion){
+get_species_metric <- function(region_input, target_family_common_name, target_species_var, metric, target_resoluion){
 
   # region_input <- "Pennsylvania, New Jersey"
+  # 
+  # target_family_common_name <- "New World Warblers"
   # 
   # target_species_var <- "Cape May Warbler"
   # 
@@ -114,9 +116,9 @@ get_species_metric <- function(region_input, target_species_var, metric, target_
   species_metric_table <- species_metric_cropped %>% 
     as.data.frame(xy = T) %>% 
     as_tibble() %>% 
-    mutate(target_species = target_species_var,
+    mutate(common_name = target_species_var,
            metric_desc = metric) %>% 
-    pivot_longer(-c(target_species, x, y, metric_desc), names_to = "date", values_to = "value") %>% 
+    pivot_longer(-c(common_name, x, y, metric_desc), names_to = "date", values_to = "value") %>% 
     mutate(date = str_remove(date, "^w"),
            date = str_replace_all(date, "\\.", "-"),
            date = ymd(date),
@@ -126,23 +128,19 @@ get_species_metric <- function(region_input, target_species_var, metric, target_
     st_filter(region_shape_buffered_moll, join = st_intersects) %>% 
     mutate(x = map_dbl(geometry, 1),
            y = map_dbl(geometry, 2)) %>% 
-    st_drop_geometry()
+    st_drop_geometry() %>% 
+    mutate(family_common_name = target_family_common_name) %>% 
+    select(family_common_name, everything())
   toc()
   
   species_metric_table
   
   # species_metric_table %>%
-  #   filter(date == "2019-10-05") %>% 
+  #   filter(date == "2019-10-05") %>%
   #   distinct(x, y) %>%
   #   ggplot() +
   #   geom_point(aes(x, y)) +
   #   geom_sf(data = region_shape_moll, alpha = 0)
-  # 
-  # species_metric_table %>%
-  #   filter(date == "2019-10-05",
-  #          !is.na(value)) %>% 
-  #   ggplot() +
-  #   geom_sf()
 }
 
 get_species_metric <- possibly(get_species_metric, otherwise = NA)
