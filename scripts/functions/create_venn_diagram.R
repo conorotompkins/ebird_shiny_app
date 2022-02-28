@@ -1,5 +1,6 @@
 library(tidyverse)
 library(ggVennDiagram)
+library(sf)
 
 create_venn_diagram <- function(reference_id, compare_id, similarity_df, table){
   
@@ -16,30 +17,37 @@ create_venn_diagram <- function(reference_id, compare_id, similarity_df, table){
   
   reference_list <- table %>% 
     filter(geo_id == reference) %>% 
-    group_by(comName) %>% 
+    group_by(common_name) %>% 
     summarize(appears = sum(abundance > 0)) %>% 
     filter(appears > 0) %>% 
     ungroup() %>% 
-    distinct(comName) %>% 
-    pull(comName)
+    distinct(common_name) %>% 
+    pull(common_name)
   
   compare_list <- table %>% 
     filter(geo_id == compare) %>% 
-    group_by(comName) %>% 
+    group_by(common_name) %>% 
     summarize(appears = sum(abundance > 0)) %>% 
     filter(appears > 0) %>% 
     ungroup() %>% 
-    distinct(comName) %>% 
-    pull(comName)
+    distinct(common_name) %>% 
+    pull(common_name)
   
   venn_list <- list("Reference" = reference_list, "Compare" = compare_list)
   
-  ggVennDiagram(venn_list) +
-    labs(fill = "Distinct Species") +
-    scale_fill_stepsn(colors = grey.colors(5),
-                      breaks = c(seq(from = 0, to = 90, by = 20), Inf),
-                      guide = guide_colorbar(direction = "horizontal",
-                                             title.position = "bottom")) +
-    scale_color_manual(values = c("#FFFFFF", "#FFFFFF")) +
-    theme(legend.position = "bottom")
+  Venn(venn_list) %>% 
+    process_data() %>% 
+    .@region %>% 
+    mutate(centroid = st_point_on_surface(geometry),
+           x = map_dbl(centroid, 1),
+           y = map_dbl(centroid, 2)) %>% 
+    select(x, y, name, geometry, count) %>% 
+    mutate(pct = count / sum(count),
+           pct = round(pct * 100, 1),
+           venn_label = str_c(count, "\n", pct, "%")) %>% 
+    ggplot(aes(fill = name)) +
+    geom_sf() +
+    geom_label(aes(x, y, label = venn_label)) +
+    guides(fill = "none") +
+    theme_void()
 }
