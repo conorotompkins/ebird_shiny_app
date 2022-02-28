@@ -65,7 +65,8 @@ ui <- shinyUI(
                        inline = T
           ),
           
-          plotOutput("venn_diagram")
+          plotOutput("venn_diagram", click = "plot_click"),
+          tableOutput("venn_table")
           
         )
       )

@@ -231,12 +231,39 @@ server <- shinyServer(function(input, output, session) {
     
     req(mouse_reference() != "",
         mouse_compare() != "")
-      
-      reference <- mouse_reference()
-      
-      compare <- mouse_compare()
-      
-      create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
+    
+    reference <- mouse_reference()
+    
+    compare <- mouse_compare()
+    
+    create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
+    
+  })
+  
+  
+  
+  output$venn_table <- renderTable({
+    
+    req(mouse_reference() != "",
+        mouse_compare() != "",
+        input$plot_click)
+    
+    venn_list <- list("Reference" = mouse_reference(), "Compare" = mouse_compare())
+    
+    venn_data <- Venn(venn_list) %>% 
+      process_data() %>% 
+      .@region %>% 
+      mutate(centroid = st_point_on_surface(geometry),
+             x = map_dbl(centroid, 1),
+             y = map_dbl(centroid, 2)) %>% 
+      st_drop_geometry() %>% 
+      select(x, y, name)
+    
+    nearPoints(df = venn_data, 
+               coordinfo = input$plot_click,
+               xvar = "x",
+               yvar = "y",
+               threshold = 50)
     
   })
   
