@@ -17,6 +17,12 @@ x <- list(A=sample(genes,300),
           C=sample(genes,440),
           D=sample(genes,350))
 
+ggVennDiagram(x, show_intersect = T)
+
+base_venn <- ggVennDiagram(x)
+
+str(base_venn)
+
 ggVennDiagram(x) + scale_fill_gradient(low="blue",high = "red")
 
 similarity_index <- vroom("data/big/similarity_index.csv")
@@ -32,13 +38,16 @@ similarity_geo %>%
 
 abunds_table <- vroom("data/big/abunds_table.csv")
 
+reference_id <- 45
+
 reference <- similarity_geo %>% 
   filter(geo_index_reference == 45) %>% 
   distinct(geo_index_reference, geo_id_reference) %>% 
   pull(geo_id_reference)
 
+compare_id <- 26
+
 compare <- similarity_geo %>% 
-  #mutate(geo_id_compare = str_c(x, y, sep = "_")) %>% 
   filter(geo_index_compare == 26) %>% 
   distinct(geo_index_compare, geo_id_compare) %>% 
   pull(geo_id_compare)
@@ -53,21 +62,21 @@ abunds_table %>%
 
 reference_list <- abunds_table %>% 
   filter(geo_id == reference) %>% 
-  group_by(comName) %>% 
+  group_by(common_name) %>% 
   summarize(appears = sum(abundance > 0)) %>% 
   filter(appears > 0) %>% 
   ungroup() %>% 
-  distinct(comName) %>% 
-  pull(comName)
+  distinct(common_name) %>% 
+  pull(common_name)
 
 compare_list <- abunds_table %>% 
   filter(geo_id == compare) %>% 
-  group_by(comName) %>% 
+  group_by(common_name) %>% 
   summarize(appears = sum(abundance > 0)) %>% 
   filter(appears > 0) %>% 
   ungroup() %>% 
-  distinct(comName) %>% 
-  pull(comName)
+  distinct(common_name) %>% 
+  pull(common_name)
 
 venn_list <- list("Reference" = reference_list, "Compare" = compare_list)
 
@@ -84,4 +93,44 @@ ggVennDiagram(venn_list) +
   scale_color_manual(values = c("#FFFFFF", "#FFFFFF")) +
   theme(legend.position = "bottom")
 
+
+
+reference_df <- abunds_table %>% 
+  filter(geo_id == reference) %>% 
+  group_by(family_common_name, common_name) %>% 
+  summarize(appears = sum(abundance > 0)) %>% 
+  filter(appears > 0) %>% 
+  ungroup() %>% 
+  distinct(family_common_name, common_name) %>% 
+  mutate(type = "Reference")
+
+compare_df <- abunds_table %>% 
+  filter(geo_id == compare) %>% 
+  group_by(family_common_name, common_name) %>% 
+  summarize(appears = sum(abundance > 0)) %>% 
+  filter(appears > 0) %>% 
+  ungroup() %>% 
+  distinct(family_common_name, common_name) %>% 
+  mutate(type = "Compare")
+
+both_df <- bind_rows(reference_df, compare_df) %>% 
+  mutate(type = "Both")
+
+venn_df <- bind_rows(reference_df, compare_df, both_df)
+
 create_venn_diagram(45, 200, similarity_df = similarity_geo, table = abunds_table)
+
+Venn(venn_list) %>% 
+  process_data() %>% 
+  .@region %>% 
+  mutate(pct = count / sum(count),
+         pct = round(pct * 100, 1),
+         venn_label = str_c(count, "\n", pct, "%")) %>% 
+  ggplot(aes(fill = name)) +
+  geom_sf() +
+  geom_sf_label(aes(label = venn_label))
+
+
+
+
+
