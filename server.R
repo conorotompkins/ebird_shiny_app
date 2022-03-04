@@ -9,7 +9,7 @@ library(sf)
 library(tigris)
 library(leaflet)
 library(hrbrthemes)
-library(ggspatial)
+library(janitor)
 
 theme_set(theme_ipsum())
 
@@ -54,6 +54,13 @@ region_shape_moll <- region_shape %>%
 
 # Define server logic required to draw a histogram
 server <- shinyServer(function(input, output, session) {
+  
+  abunds_table_reactive <- reactive({
+    
+    abunds_table %>% 
+      filter(month == input$month_input)
+    
+  })
   
   similarity_index_reactive <- reactive({
     
@@ -231,12 +238,127 @@ server <- shinyServer(function(input, output, session) {
     
     req(mouse_reference() != "",
         mouse_compare() != "")
-      
-      reference <- mouse_reference()
-      
-      compare <- mouse_compare()
-      
-      create_venn_diagram(reference, compare, similarity_grid_reactive(), abunds_table)
+
+    create_venn_diagram(mouse_reference(), mouse_compare(), similarity_grid_reactive(), abunds_table_reactive())
+    
+  })
+  
+  
+  
+  venn_segment_reactive <- reactive({
+    
+    req(mouse_reference() != "",
+        mouse_compare() != "",
+        input$plot_click)
+    
+    reference <- similarity_grid_reactive() %>% 
+      filter(geo_index_reference == mouse_reference()) %>% 
+      distinct(geo_index_reference, geo_id_reference) %>% 
+      pull(geo_id_reference)
+    
+    compare <- similarity_grid_reactive() %>% 
+      filter(geo_index_compare == mouse_compare()) %>% 
+      distinct(geo_index_compare, geo_id_compare) %>% 
+      pull(geo_id_compare)
+    
+    reference_list <- abunds_table_reactive() %>% 
+      filter(geo_id == reference) %>% 
+      group_by(common_name) %>% 
+      summarize(appears = sum(abundance > 0)) %>% 
+      filter(appears > 0) %>% 
+      ungroup() %>% 
+      distinct(common_name) %>% 
+      pull(common_name)
+    
+    compare_list <- abunds_table_reactive() %>% 
+      filter(geo_id == compare) %>% 
+      group_by(common_name) %>% 
+      summarize(appears = sum(abundance > 0)) %>% 
+      filter(appears > 0) %>% 
+      ungroup() %>% 
+      distinct(common_name) %>% 
+      pull(common_name)
+    
+    venn_list <- list("Reference" = reference_list, "Compare" = compare_list)
+    
+    venn_data <- Venn(venn_list) %>% 
+      process_data() %>% 
+      .@region %>% 
+      mutate(centroid = st_point_on_surface(geometry),
+             x = map_dbl(centroid, 1),
+             y = map_dbl(centroid, 2)) %>% 
+      st_drop_geometry() %>% 
+      select(x, y, name)
+    
+    nearPoints(df = venn_data, 
+               coordinfo = input$plot_click,
+               xvar = "x",
+               yvar = "y",
+               threshold = 50) %>% 
+      distinct(name) %>% 
+      pull()
+    
+  })
+  
+  output$venn_segment <- renderText(venn_segment_reactive())
+  
+  output$venn_table <- renderTable({
+    
+    req(mouse_reference() != "",
+        mouse_compare() != "",
+        input$plot_click)
+    
+    reference <- similarity_grid_reactive() %>% 
+      filter(geo_index_reference == mouse_reference()) %>% 
+      distinct(geo_index_reference, geo_id_reference) %>% 
+      pull(geo_id_reference)
+    
+    compare <- similarity_grid_reactive() %>% 
+      filter(geo_index_compare == mouse_compare()) %>% 
+      distinct(geo_index_compare, geo_id_compare) %>% 
+      pull(geo_id_compare)
+    
+    reference_df <- abunds_table_reactive() %>% 
+      filter(geo_id == reference) %>% 
+      group_by(family_common_name, common_name) %>% 
+      summarize(appears = sum(abundance > 0)) %>% 
+      filter(appears > 0) %>% 
+      ungroup() %>% 
+      distinct(family_common_name, common_name) %>% 
+      mutate(type = "Reference")
+    
+    compare_df <- abunds_table_reactive() %>% 
+      filter(geo_id == compare) %>% 
+      group_by(family_common_name, common_name) %>% 
+      summarize(appears = sum(abundance > 0)) %>% 
+      filter(appears > 0) %>% 
+      ungroup() %>% 
+      distinct(family_common_name, common_name) %>% 
+      mutate(type = "Compare")
+    
+    reference_df_segment <- anti_join(reference_df, compare_df, by = c("family_common_name", "common_name"))
+    
+    compare_df_segment <- anti_join(compare_df, reference_df, by = c("family_common_name", "common_name"))
+    
+    both_df_segment <- reference_df %>% 
+      semi_join(compare_df, by = c("family_common_name", "common_name")) %>% 
+      mutate(type = "Reference..Compare")
+    
+    print(both_df_segment)
+    
+    venn_df <- bind_rows(reference_df_segment, compare_df_segment, both_df_segment) %>% 
+      filter(type == venn_segment_reactive()) %>%
+      count(type, family_common_name, sort = T) %>% 
+      mutate(type = case_when(type == "Reference..Compare" ~ "Both",
+                              TRUE ~ type)) %>% 
+      set_names(c("Type", "Family", "Count")) %>% 
+      adorn_totals(where = "row")
+    
+    venn_df %>% 
+      distinct(Type) %>% 
+      print()
+    
+    venn_df
     
   })
   

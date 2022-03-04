@@ -2,7 +2,7 @@ library(tidyverse)
 library(rebird)
 library(conflicted)
 
-source("scripts/functions/pull_species_metric.R")
+source("scripts/functions/get_species_metric.R")
 
 conflict_prefer("select", "dplyr")
 
@@ -61,16 +61,15 @@ glimpse(species_table)
 #                                 ~get_species_metric(..1, ..2, ..3, ..4)))
 
 species_table <- species_table %>% 
-  #filter(common_name == "Cape May Warbler") %>% 
-  distinct(common_name) %>% 
+  distinct(family_common_name, common_name) %>% 
   mutate(resolution = "lr",
          metric = "abundance",
          region = region_str) %>%  
-  mutate(abundance_table = pmap(list(region, common_name, metric, resolution), 
-                                ~get_species_metric(..1, ..2, ..3, ..4)))
+  mutate(abundance_table = pmap(list(region, family_common_name, common_name, metric, resolution), 
+                                ~get_species_metric(..1, ..2, ..3, ..4, ..5)))
 
 species_table %>% 
-  select(common_name, abundance_table) %>% 
+  select(abundance_table) %>% 
   mutate(test = map_lgl(abundance_table, is.data.frame)) %>% 
   filter(test == T) %>% 
   unnest(abundance_table) %>% 
@@ -83,8 +82,17 @@ species_table %>%
   mutate(test = map_lgl(abundance_table, is.data.frame)) %>% 
   filter(test == F)
 
-species_table %>% 
-  select(common_name, abundance_table) %>% 
+species_table_output <- species_table %>% 
+  select(family_common_name, common_name, abundance_table) %>% 
   mutate(test = map_lgl(abundance_table, is.data.frame)) %>% 
   filter(test == T) %>% 
-  pwalk(~write_csv(x = .y, file = paste0("data/big/species_abundance/", .x, ".csv") ) )
+  select(-test)
+
+species_table_output %>% 
+  distinct(family_common_name) %>% 
+  pull() %>% 
+  str_c("data/big/species_abundance/", .) %>% 
+  map(dir.create)
+
+species_table_output %>% 
+  pwalk(~write_csv(x = ..3, file = paste0("data/big/species_abundance/", ..1, "/", ..2, ".csv") ) )
