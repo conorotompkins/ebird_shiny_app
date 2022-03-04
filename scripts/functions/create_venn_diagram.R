@@ -10,7 +10,6 @@ create_venn_diagram <- function(reference_id, compare_id, similarity_df, table){
     pull(geo_id_reference)
   
   compare <- similarity_df %>% 
-    #mutate(geo_id_compare = str_c(x, y, sep = "_")) %>% 
     filter(geo_index_compare == compare_id) %>% 
     distinct(geo_index_compare, geo_id_compare) %>% 
     pull(geo_id_compare)
