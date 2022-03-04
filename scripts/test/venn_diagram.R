@@ -5,10 +5,10 @@ library(tools)
 library(lubridate)
 library(ggVennDiagram)
 library(sf)
+library(janitor)
 
 source("scripts/functions/prep_similarity_index.R")
 source("scripts/functions/create_venn_diagram.R")
-
 
 genes <- paste("gene",1:1000,sep="")
 set.seed(20210419)
@@ -25,7 +25,10 @@ str(base_venn)
 
 ggVennDiagram(x) + scale_fill_gradient(low="blue",high = "red")
 
-similarity_index <- vroom("data/big/similarity_index.csv")
+input_month <- "Mar"
+
+similarity_index <- vroom("data/big/similarity_index.csv") %>% 
+  filter(month == input_month)
 
 similarity_geo <- similarity_index %>% 
   prep_similarity_index(45) %>% 
@@ -36,19 +39,23 @@ similarity_geo %>%
   ggplot(aes(x, y, label = geo_index_compare)) +
   geom_text()
 
-abunds_table <- vroom("data/big/abunds_table.csv")
+abunds_table <- vroom("data/big/abunds_table.csv") %>% 
+  filter(month == input_month)
+
+abunds_table %>% 
+  count(month)
 
 reference_id <- 45
 
 reference <- similarity_geo %>% 
-  filter(geo_index_reference == 45) %>% 
+  filter(geo_index_reference == reference_id) %>% 
   distinct(geo_index_reference, geo_id_reference) %>% 
   pull(geo_id_reference)
 
-compare_id <- 26
+compare_id <- 238
 
 compare <- similarity_geo %>% 
-  filter(geo_index_compare == 26) %>% 
+  filter(geo_index_compare == compare_id) %>% 
   distinct(geo_index_compare, geo_id_compare) %>% 
   pull(geo_id_compare)
 
@@ -57,8 +64,6 @@ abunds_table %>%
   mutate(flag = geo_id %in% c(reference, compare)) %>% 
   ggplot(aes(x, y, color = flag)) +
   geom_point()
-
-
 
 reference_list <- abunds_table %>% 
   filter(geo_id == reference) %>% 
@@ -93,8 +98,6 @@ ggVennDiagram(venn_list) +
   scale_color_manual(values = c("#FFFFFF", "#FFFFFF")) +
   theme(legend.position = "bottom")
 
-
-
 reference_df <- abunds_table %>% 
   filter(geo_id == reference) %>% 
   group_by(family_common_name, common_name) %>% 
@@ -113,12 +116,41 @@ compare_df <- abunds_table %>%
   distinct(family_common_name, common_name) %>% 
   mutate(type = "Compare")
 
-both_df <- bind_rows(reference_df, compare_df) %>% 
+reference_df_segment <- anti_join(reference_df, compare_df, by = c("family_common_name", "common_name"))
+
+compare_df_segment <- anti_join(compare_df, reference_df, by = c("family_common_name", "common_name"))
+
+both_df_segment <- reference_df %>% 
+  semi_join(compare_df, by = c("family_common_name", "common_name")) %>% 
   mutate(type = "Both")
 
-venn_df <- bind_rows(reference_df, compare_df, both_df)
+reference_df %>% 
+  semi_join(compare_df, by = c("family_common_name", "common_name"))
 
-create_venn_diagram(45, 200, similarity_df = similarity_geo, table = abunds_table)
+compare_df %>% 
+  semi_join(reference_df, by = c("family_common_name", "common_name"))
+
+reference_df %>% 
+  anti_join(compare_df, by = c("family_common_name", "common_name"))
+
+compare_df %>% 
+  anti_join(reference_df, by = c("family_common_name", "common_name"))
+
+venn_df <- bind_rows(reference_df_segment, compare_df_segment, both_df_segment)
+
+venn_df %>% 
+  count(type, family_common_name) %>% 
+  arrange(type, desc(n)) %>% 
+  group_by(type) %>% 
+  summarize(n = sum(n)) %>% 
+  adorn_totals(where = "row")
+
+create_venn_diagram(reference_id, compare_id, similarity_df = similarity_geo, table = abunds_table)
+
+Venn(venn_list) %>% 
+  process_data() %>% 
+  .@region %>% 
+  distinct(name)
 
 Venn(venn_list) %>% 
   process_data() %>% 
