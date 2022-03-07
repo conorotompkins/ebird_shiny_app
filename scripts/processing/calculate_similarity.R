@@ -15,10 +15,10 @@ mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
 original_raster_crs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +no_defs"
 
-region_input <- "Pennsylvania, New Jersey"
+region_input <- read_csv("data/big/target_region.csv")
 
 region_shape <- states(cb = T) %>% 
-  filter(str_detect(region_input, NAME)) %>% 
+  semi_join(region_input, by = c("NAME" = "state_name")) %>% 
   st_transform(crs = original_raster_crs) %>% 
   summarize()
 
@@ -169,7 +169,7 @@ abundance_summary <- abunds_table %>%
   #st_filter(region_shape_moll, join = st_intersects) %>% 
   select(-species_id)
 
-#each species has 3576 rows
+#each species has 11148 rows
 abundance_summary %>% 
   st_drop_geometry() %>% 
   count(common_name) %>% 
@@ -220,7 +220,7 @@ pairwise_corr_f <- function(x){
                diag = T, upper = T)
 }
 
-#each geo_id_1 in similarity_index should have 342 geo_id_2s
+#each geo_id_1 in similarity_index should have 929 geo_id_2s
 abundance_summary %>% 
   st_drop_geometry() %>% 
   distinct(geo_id) %>% 
@@ -241,24 +241,24 @@ similarity_index <- abundance_summary %>%
   select(month, everything()) %>% 
   arrange(geo_id_1, geo_id_2)
 
-#298 geo_id_1s
+#929 geo_id_1s
 similarity_index %>% 
   distinct(geo_id_1) %>% 
   count(geo_id_1) %>% 
   nrow()
 
-#298 geo_id_1s
+#929 geo_id_1s
 similarity_index %>% 
   distinct(geo_id_2) %>% 
   count(geo_id_2) %>% 
   nrow()
 
-#each geo_id_1 appears 3576 
+#each geo_id_1 appears 11148 
 similarity_index %>% 
   count(geo_id_1) %>% 
   distinct(n)
 
-#each geo_id_2 appears 3576 
+#each geo_id_2 appears 11148 
 similarity_index %>% 
   count(geo_id_2) %>% 
   distinct(n)
