@@ -23,12 +23,10 @@ abunds_table <- vroom("data/big/abunds_table.csv")
 
 #create similarity index
 #load similarity index data
-bins <- c(-Inf, 0, seq(from = 10, to = 80, by = 10), Inf)
-length(bins)
+bins <- seq(from = -1, to = 1, by = .2)
 
-bin_labels <- c("0", "1-10", "10-20", "20-30", "30-40", "40-50", "50-60",
-                "60-70", "70-80", "80+")
-length(bin_labels)
+bin_labels <- c("-1 to -.8", ".8 to -.6", "6 to -.4", "-.4 to -.2", "-.2 to 0", 
+                "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
 
 similarity_index <- read_csv("data/big/similarity_index.csv")
 
@@ -96,11 +94,6 @@ server <- shinyServer(function(input, output, session) {
   similarity_grid_reactive <- reactive({
     
     req(mouse_reference())
-    
-    bins <- seq(from = -1, to = 1, by = .2)
-    
-    bin_labels <- c("-1 to -.8", ".8 to -.6", "6 to -.4", "-.4 to -.2", "-.2 to 0", 
-                    "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
     
     similarity_index_reactive() %>%
       prep_similarity_index(mouse_reference()) %>% 
@@ -171,10 +164,7 @@ server <- shinyServer(function(input, output, session) {
   observe({
     
     req(input$chloropleth_map_shape_click$id, similarity_grid_reactive())
-    
-    bin_labels <- c("-1 to -.8", ".8 to -.6", "6 to -.4", "-.4 to -.2", "-.2 to 0", 
-                    "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
-    
+
     similarity_grid_corr <- similarity_grid_reactive() %>%
       st_transform(crs = "EPSG:4326") %>% 
       mutate(grid_opacity = input$transparency_slider_input) %>% 
@@ -206,10 +196,7 @@ server <- shinyServer(function(input, output, session) {
   })
   
   output$histogram <- renderPlot({
-    
-    bin_labels <- c("-1 to -.8", ".8 to -.6", "6 to -.4", "-.4 to -.2", "-.2 to 0", 
-                    "0 to .2",".2 to .4", ".4 to .6", ".6 to .8", ".8 to 1")
-    
+
     ws <- str_c(rep(" ", 135), collapse = "")
     
     x_label <- str_c("Less Similar", ws, "More Similar")
