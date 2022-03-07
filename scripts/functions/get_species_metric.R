@@ -18,9 +18,9 @@ select <- dplyr::select
 options(timeout = max(300, getOption("timeout")),
         tigris_use_cache = TRUE)
 
-get_species_metric <- function(region_input, target_family_common_name, target_species_var, metric, target_resoluion){
+get_species_metric <- function(region_input, target_family_common_name, target_species_var, metric, target_resolution){
 
-  # region_input <- "Pennsylvania, New Jersey"
+  # region_input <- "Pennsylvania, New Jersey, New York, Maryland, Ohio, West Virginia, Delaware"
   # 
   # target_family_common_name <- "New World Warblers"
   # 
@@ -28,7 +28,10 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   # 
   # metric <- "abundance"
   # 
-  # target_resoluion <- "lr"
+  # target_resolution <- "lr"
+  
+  region_input_list <- str_split(region_input, ", ", simplify = F) %>% 
+    unlist()
   
   target_species <- ebirdst_runs %>% 
     filter(common_name == target_species_var) %>% 
@@ -40,17 +43,18 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
     message()
   
   glue("Pulling", metric, "data for", target_species, "AKA", target_species_var, 
-       "at resolution", target_resoluion, "in", region_input, .sep = " ") %>% 
+       "at resolution", target_resolution, "in", region_input, .sep = " ") %>% 
     message()
   
   tic()
   sp_path <- ebirdst_download(species = target_species, tifs_only = T, force = F)
   toc()
+  
   glue("Downloaded files to", sp_path, .sep = " ") %>% 
     message()
   
   message("Loading raster")
-  species_metric <- load_raster(metric, path = sp_path, resolution = target_resoluion)
+  species_metric <- load_raster(metric, path = sp_path, resolution = target_resolution)
   
   original_raster_crs <- raster::crs(species_metric) %>% 
     as.character()
@@ -65,7 +69,7 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   buffer <- 10^4 * 4
   
   region_shape <- states(cb = T) %>% 
-    filter(str_detect(region_input, NAME)) %>% 
+    filter(NAME %in% region_input_list) %>% 
     st_transform(crs = original_raster_crs) %>% 
     summarize()
   

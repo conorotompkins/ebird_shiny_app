@@ -15,7 +15,9 @@ ebird_tax <- ebirdtaxonomy() %>%
 state_names <- tibble(state_name = state.name,
                       state_abb = state.abb)
 
-location_birds <- tibble(region = c("US-PA", "US-NJ")) %>% 
+target_region <- tibble(region = c("US-PA", "US-NJ", "US-OH", "US-NY", "US-MD", "US-WV", "US-DE"))
+
+location_birds <- target_region %>% 
   mutate(birds = map(region, ebirdregionspecies),
          region = str_remove(region, "^US-")) %>% 
   left_join(state_names, by = c(region = "state_abb")) %>% 
@@ -44,6 +46,10 @@ species_table <- location_songbirds %>%
   semi_join(top_families) %>% 
   select(state_name, state_abb, scientific_name, common_name, species_code, family_common_name)
 
+species_table %>% 
+  distinct(state_name) %>% 
+  write_csv("data/big/target_region.csv")
+
 region_str <- species_table %>% 
   distinct(state_name) %>% 
   pull() %>% 
@@ -51,7 +57,7 @@ region_str <- species_table %>%
 
 glimpse(species_table)
 
-#test <- get_species_metric("Pennsylvania, New Jersey", "Cape May Warbler", "abundance", "lr")
+#test <- get_species_metric(region_str, "New World Warblers", "Cape May Warbler", "abundance", "lr")
 # 
 # test <- tibble(region = region_str,
 #                comName = "Cape May Warbler",
