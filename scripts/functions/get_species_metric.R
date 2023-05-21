@@ -29,6 +29,8 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   # 
   # target_resolution <- "lr"
   
+  stopifnot(is.character(region_input), length(region_input) == 1)
+  
   region_input_list <- str_split(region_input, ", ", simplify = F) %>% 
     unlist()
   
@@ -150,7 +152,7 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   #   geom_sf(data = region_shape_moll, alpha = 0)
 }
 
-get_species_metric <- possibly(get_species_metric, otherwise = NA)
+get_species_metric <- safely(get_species_metric, otherwise = NA)
 
 #test <- get_species_metric(region_input = "Pennsylvania", "New World Warblers", "Cape May Warbler", "abundance", "lr")
 
