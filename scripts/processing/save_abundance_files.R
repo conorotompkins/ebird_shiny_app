@@ -15,7 +15,7 @@ ebird_tax <- ebirdtaxonomy() %>%
 state_names <- tibble(state_name = state.name,
                       state_abb = state.abb)
 
-target_region <- tibble(region = c("US-PA", "US-NJ", "US-OH", "US-NY", "US-MD", "US-WV", "US-DE"))
+target_region <- tibble(region = c("US-PA"))
 
 location_birds <- target_region %>% 
   mutate(birds = map(region, ebirdregionspecies),
@@ -29,9 +29,16 @@ location_birds <- ebirdst_runs %>%
   select(common_name, scientific_name, species_code) %>% 
   inner_join(location_birds, by = c("species_code"))
 
-ebird_tax <- ebird_tax %>% 
-  #filter(order == "Passeriformes") %>% 
-  select(scientific_name, common_name, species_code, family_common_name)
+ebird_tax <- rebird::ebirdtaxonomy() %>% 
+  filter(familyComName == "New World Warblers") %>% 
+  select(sciName, comName, speciesCode, order, familyComName) |> 
+  rename(scientific_name = sciName,
+         common_name = comName,
+         species_code = speciesCode,
+         order = order,
+         family_common_name = familyComName)
+
+ebird_tax
 
 location_songbirds <- location_birds %>% 
   inner_join(ebird_tax, by = c("species_code", "common_name", "scientific_name"))
@@ -57,14 +64,15 @@ region_str <- species_table %>%
 
 glimpse(species_table)
 
-#test <- get_species_metric(region_str, "New World Warblers", "Cape May Warbler", "abundance", "lr")
+test <- get_species_metric("Pennsylvania", "New World Warblers", "Cape May Warbler", "abundance", "lr")
 # 
 # test <- tibble(region = region_str,
-#                comName = "Cape May Warbler",
+#                family_common_name = "New World Warblers",
+#                common_name = "Cape May Warbler",
 #                metric = "abundance",
 #                resolution = "lr") %>%
-#   mutate(abundance_table = pmap(list(region, comName, metric, resolution),
-#                                 ~get_species_metric(..1, ..2, ..3, ..4)))
+#   mutate(abundance_table = pmap(list(region, family_common_name, common_name, metric, resolution),
+#                                 ~get_species_metric(..1, ..2, ..3, ..4, ..5)))
 
 species_table <- species_table %>% 
   distinct(family_common_name, common_name) %>% 
