@@ -64,7 +64,7 @@ region_str <- species_table %>%
 
 glimpse(species_table)
 
-test <- get_species_metric("Pennsylvania", "New World Warblers", "Cape May Warbler", "abundance", "lr")
+#test <- get_species_metric("Pennsylvania", "New World Warblers", "Cape May Warbler", "abundance", "lr")
 # 
 # test <- tibble(region = region_str,
 #                family_common_name = "New World Warblers",
@@ -84,19 +84,25 @@ species_table <- species_table %>%
 
 species_table %>% 
   select(abundance_table) %>% 
-  mutate(test = map_lgl(abundance_table, is.data.frame)) %>% 
+  slice_head(n = 1) |> 
+  #pull()
+  mutate(result = map(abundance_table, "result")) |> 
+  mutate(test = map_lgl(result, is.data.frame)) %>% 
   filter(test == T) %>% 
-  unnest(abundance_table) %>% 
+  unnest(result) %>% 
   distinct(x, y) %>% 
   ggplot() +
   geom_point(aes(x, y))
 
 species_table %>% 
+  #select(abundance_table) %>% 
+  mutate(abundance_table = map(abundance_table, "result")) |> 
   select(common_name, abundance_table) %>% 
   mutate(test = map_lgl(abundance_table, is.data.frame)) %>% 
   filter(test == F)
 
 species_table_output <- species_table %>% 
+  mutate(abundance_table = map(abundance_table, "result")) |> 
   select(family_common_name, common_name, abundance_table) %>% 
   mutate(test = map_lgl(abundance_table, is.data.frame)) %>% 
   filter(test == T) %>% 
