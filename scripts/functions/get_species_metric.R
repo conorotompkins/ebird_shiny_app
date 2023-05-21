@@ -152,7 +152,7 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
 
 get_species_metric <- possibly(get_species_metric, otherwise = NA)
 
-test <- get_species_metric(region_input = "Pennsylvania", "New World Warblers", "Cape May Warbler", "abundance", "lr")
+#test <- get_species_metric(region_input = "Pennsylvania", "New World Warblers", "Cape May Warbler", "abundance", "lr")
 
 # test |> 
 #   ggplot(aes(x, y, fill = value, color = value)) +
