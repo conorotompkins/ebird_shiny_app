@@ -8,17 +8,17 @@ library(tools)
 
 options(tigris_use_cache = TRUE)
 
-abunds_table <- list.files("data/big/species_abundance", full.names = T) %>% 
-  keep(str_detect(., "Cape May Warbler|Song Sparrow")) %>% 
+abunds_table <- list.files("data/big/species_abundance", full.names = T, recursive = TRUE) %>% 
+  keep(str_detect(., "New World Warblers")) %>% 
   set_names() %>% 
-  map_dfr(vroom, delim = ",", .id = 'comName') %>% 
-  mutate(comName = basename(comName) %>% file_path_sans_ext,
+  map_dfr(vroom, delim = ",", .id = 'path') %>% 
+  mutate(path = basename(path) %>% file_path_sans_ext,
          month = month(date, label = T)) %>% 
   rename(abundance = value) %>% 
-  filter(comName %in% c("Cape May Warbler", "Song Sparrow"))
+  filter(path != "Hermit Warbler")
 
 abunds_table %>% 
-  distinct(comName)
+  distinct(path)
 
 mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
@@ -49,25 +49,37 @@ region_shape_moll %>%
 
 #find month with highest mean abundance per species, map that
 peak_abundance_map_data <- abunds_table %>% 
-  group_by(comName, month, x, y) %>% 
-  summarize(mean_abundance_loc = mean(abundance, na.rm = T)) %>% 
+  group_by(common_name, month, x, y) %>% 
+  summarize(abundance = mean(abundance, na.rm = T)) %>% 
   ungroup()
 
+peak_abundance_map_data |> 
+  count(common_name, month, x, y) |> 
+  filter(n > 1)
+
+peak_month <- peak_abundance_map_data |> 
+  group_by(common_name, month) |> 
+  summarize(abundance = mean(abundance)) |> 
+  ungroup() |> 
+  group_by(common_name) |> 
+  filter(abundance == max(abundance)) |> 
+  select(common_name, month)
+
 peak_abundance_map_data <- peak_abundance_map_data %>% 
-  group_by(comName, month) %>%
-  mutate(mean_abundance = mean(mean_abundance_loc, na.rm = T)) %>%
-  ungroup() %>%
-  group_by(comName) %>% 
-  filter(mean_abundance == max(mean_abundance, na.rm = T)) %>% 
-  ungroup() %>% 
-  mutate(comName = fct_reorder(comName, mean_abundance, .desc = T))
+  semi_join(peak_month) |> 
+  mutate(common_name = fct_reorder(common_name, abundance, mean, .desc = T)) |> 
+  group_by(common_name) |> 
+  mutate(abundance_rel = abundance / max(abundance))
+
+peak_abundance_map_data |> 
+  count(common_name)
 
 peak_abundance_map_plot <- peak_abundance_map_data %>% 
   ggplot() +
-  geom_raster(aes(x, y, fill = mean_abundance_loc)) +
+  geom_raster(aes(x, y, fill = abundance_rel)) +
   geom_sf(data = region_shape_moll, alpha = 0, color = "black") +
   scale_fill_viridis_c() +
-  facet_wrap(comName~str_c("Peaks in: ", month)) +
+  facet_wrap(common_name~str_c("Peaks in: ", month)) +
   labs(fill = "Abundance") +
   theme_void() +
   theme(plot.background = element_rect(fill = "white"))
@@ -80,9 +92,9 @@ peak_abundance_map_plot %>%
          height = 10)
 
 abundance_histogram <- abunds_table %>% 
-  ggplot(aes(abundance, fill = comName)) +
-  geom_histogram(alpha = .8, binwidth = 1) +
-  facet_wrap(~comName) +
+  ggplot(aes(abundance, fill = common_name)) +
+  geom_histogram(alpha = .8) +
+  facet_wrap(~common_name) +
   guides(fill = "none") +
   theme_ipsum() +
   theme(plot.background = element_rect(fill = "white"))
@@ -95,11 +107,11 @@ abundance_histogram %>%
          height = 15)
 
 top_areas <- abunds_table %>% 
-  group_by(comName, x, y) %>% 
+  group_by(common_name, x, y) %>% 
   summarize(mean_abundance = mean(abundance, na.rm = T)) %>% 
   ungroup() %>% 
-  arrange(comName, desc(mean_abundance)) %>% 
-  group_by(comName) %>% 
+  arrange(common_name, desc(mean_abundance)) %>% 
+  group_by(common_name) %>% 
   slice_head(n = 300) %>% 
   mutate(id = row_number() %>% as.character) %>% 
   ungroup()
@@ -110,7 +122,7 @@ location_tile_heatmap_plot <- abunds_table %>%
   ggplot(aes(x = date, y = id, fill = abundance)) +
   geom_tile() +
   scale_fill_viridis_c() +
-  facet_wrap(~comName) +
+  facet_wrap(~common_name) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
 
@@ -123,13 +135,13 @@ location_tile_heatmap_plot %>%
 
 mean_abunds_table <- abunds_table %>% 
   mutate(month = month(date, label = T)) %>% 
-  group_by(comName, month) %>% 
+  group_by(common_name, month) %>% 
   summarize(mean_abundance = mean(abundance, na.rm = T)) %>% 
   ungroup()
 
 polar_frequency_plot <- mean_abunds_table %>% 
-  mutate(comName = fct_reorder(comName, mean_abundance, .fun = mean, .desc = T)) %>% 
-  ggplot(aes(x = month, y = mean_abundance, fill = comName, color = comName, group = comName)) +
+  mutate(common_name = fct_reorder(common_name, mean_abundance, .fun = mean, .desc = T)) %>% 
+  ggplot(aes(x = month, y = mean_abundance, fill = common_name, color = common_name, group = common_name)) +
   geom_polygon(alpha = .5) +
   coord_polar(theta = "x") +
   # guides(fill = "none",
@@ -148,4 +160,3 @@ polar_frequency_plot %>%
   ggsave(filename = "output/polar_frequency_plot.png",
          width = 10,
          height = 10)
-
