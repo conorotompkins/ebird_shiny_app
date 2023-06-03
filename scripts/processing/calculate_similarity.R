@@ -184,7 +184,7 @@ abundance_summary %>%
   filter(is.na(common_name))
 
 abundance_summary %>%
-  filter(common_name == "Cape May Warbler"#,
+  filter(common_name == "Ovenbird"#,
          #month == "Sep"
          ) %>% 
   mutate(month = factor(month, levels = month.abb)) %>% 
@@ -196,7 +196,7 @@ abundance_summary %>%
 
 #no issue with duplicate x,y
 abundance_summary %>%
-  filter(common_name %in% c("Cape May Warbler", "American Black Duck"),
+  filter(common_name %in% c("Ovenbird", "American Black Duck"),
          month == "Sep") %>% 
   mutate(month = factor(month, levels = month.abb)) %>% 
   separate(geo_id, into = c("x", "y"), sep = "_") %>% 
