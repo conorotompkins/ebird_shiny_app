@@ -2,7 +2,7 @@ library(tidyverse)
 library(lobstr)
 
 ebird_files <-
-  list.files("/Users/conortompkins/Library/Application Support/ebirdst",
+  list.files("/Users/conorotompkins/Library/Application Support/org.R-project.R/R/ebirdst",
              full.names = T, recursive = T) %>% 
   set_names() %>% 
   enframe(name = "path", value = "file") %>% 

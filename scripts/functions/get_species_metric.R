@@ -2,8 +2,7 @@ library(tidyverse)
 library(janitor)
 library(ebirdst)
 library(sf)
-library(raster)
-library(fasterize)
+library(terra)
 library(rnaturalearth)
 library(lubridate)
 library(tigris)
@@ -20,7 +19,7 @@ options(timeout = max(300, getOption("timeout")),
 
 get_species_metric <- function(region_input, target_family_common_name, target_species_var, metric, target_resolution){
 
-  # region_input <- "Pennsylvania, New Jersey, New York, Maryland, Ohio, West Virginia, Delaware"
+  # region_input <- "Pennsylvania"
   # 
   # target_family_common_name <- "New World Warblers"
   # 
@@ -29,6 +28,8 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   # metric <- "abundance"
   # 
   # target_resolution <- "lr"
+  
+  stopifnot(is.character(region_input), length(region_input) == 1)
   
   region_input_list <- str_split(region_input, ", ", simplify = F) %>% 
     unlist()
@@ -56,7 +57,7 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   message("Loading raster")
   species_metric <- load_raster(metric, path = sp_path, resolution = target_resolution)
   
-  original_raster_crs <- raster::crs(species_metric) %>% 
+  original_raster_crs <- crs(species_metric) %>% 
     as.character()
   
   str_c("Getting polygons for", region_input, "from Tigris", sep = " ") %>% 
@@ -64,7 +65,7 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   
   mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
   
-  original_raster_crs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +no_defs"
+  #original_raster_crs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +no_defs"
   
   buffer <- 10^4 * 4
   
@@ -73,21 +74,24 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
     st_transform(crs = original_raster_crs) %>% 
     summarize()
   
+  #plot(region_shape)
+  
   region_shape_buffered <- st_buffer(region_shape, buffer)
   
-  region_shape_spdf <- as(region_shape, 'Spatial')
+  #plot(region_shape_buffered)
   
-  region_shape_spdf_buffered <- as(region_shape_buffered, 'Spatial')
-  
-  region_shape_buffered_moll <- region_shape %>% 
+  region_shape_buffered <- region_shape %>% 
     st_buffer(buffer) %>% 
-    st_transform(mollweide)
+    st_transform(original_raster_crs)
+  
+  region_shape_buffered_moll <- region_shape_buffered |> 
+    st_transform(crs = mollweide)
   
   region_bbox <- region_shape %>% 
-    sf::st_bbox(crs = original_raster_crs)
+    st_bbox(crs = original_raster_crs)
   
   region_shape_moll <- region_shape %>% 
-    st_transform(mollweide)
+    st_transform(crs = mollweide)
   
   # region_shape_moll %>%
   #   ggplot() +
@@ -97,27 +101,28 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   message("Cropping raster")
   
   tic()
-  #plot(species_metric$w2019.10.05)
+  #plot(species_metric)
   
   species_metric_cropped <- species_metric %>% 
-    crop(region_shape_spdf_buffered)
+    crop(region_shape)
   
-  #plot(species_metric_cropped$w2019.10.05)
-  
-  species_metric_cropped <- species_metric_cropped %>% 
-    mask(region_shape_spdf_buffered)
-  
-  #plot(species_metric_cropped$w2019.10.05)
+  #plot(species_metric_cropped$`2021-10-05`)
   
   species_metric_cropped <- species_metric_cropped %>% 
-    projectRaster(crs = mollweide, method = "ngb")
+    mask(region_shape)
   
-  #plot(species_metric_cropped$w2019.10.05)
+  #plot(species_metric_cropped$`2021-10-05`)
+  
+  species_metric_cropped_moasked_moll <- species_metric_cropped %>%
+    project(y = mollweide, method = "near") |> 
+    mask(region_shape_moll)
+  
+  #plot(species_metric_cropped_moasked_moll$`2021-10-05`)
   toc()
   
   message("Transforming raster to tibble")
   tic()
-  species_metric_table <- species_metric_cropped %>% 
+  species_metric_table <- species_metric_cropped_moasked_moll %>% 
     as.data.frame(xy = T) %>% 
     as_tibble() %>% 
     mutate(common_name = target_species_var,
@@ -129,7 +134,7 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
            month = month(date, label = T),
            region = region_input) %>% 
     st_as_sf(coords = c("x", "y"), crs = mollweide) %>% 
-    st_filter(region_shape_buffered_moll, join = st_intersects) %>% 
+    st_filter(region_shape_moll, join = st_contains()) %>% 
     mutate(x = map_dbl(geometry, 1),
            y = map_dbl(geometry, 2)) %>% 
     st_drop_geometry() %>% 
@@ -140,14 +145,23 @@ get_species_metric <- function(region_input, target_family_common_name, target_s
   species_metric_table
   
   # species_metric_table %>%
-  #   filter(date == "2019-10-05") %>%
+  #   filter(date == "2021-10-05") %>%
   #   distinct(x, y) %>%
   #   ggplot() +
   #   geom_point(aes(x, y)) +
   #   geom_sf(data = region_shape_moll, alpha = 0)
 }
 
-get_species_metric <- possibly(get_species_metric, otherwise = NA)
+get_species_metric <- safely(get_species_metric, otherwise = NA)
+
+#test <- get_species_metric(region_input = "Pennsylvania", "New World Warblers", "Cape May Warbler", "abundance", "lr")
+
+# test |> 
+#   ggplot(aes(x, y, fill = value, color = value)) +
+#   geom_raster() +
+#   facet_wrap(vars(date)) +
+#   scale_fill_viridis_c() +
+#   scale_color_viridis_c()
 
 #references
 # https://www.jamiecmontgomery.com/post/cropping-rasters-down-to-size/

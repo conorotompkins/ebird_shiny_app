@@ -14,7 +14,7 @@ mollweide <- "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84"
 
 original_raster_crs <- "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +R=6371007.181 +units=m +no_defs"
 
-region_str <- "Pennsylvania, New Jersey"
+region_str <- "Pennsylvania"
 
 region_shape <- states(cb = T) %>% 
   filter(str_detect(region_str, NAME)) %>% 
@@ -189,4 +189,3 @@ similarity_geo %>%
   addLegend("bottomright", pal = pal, values = ~correlation,
             title = "Correlation",
             opacity = 1)
-
