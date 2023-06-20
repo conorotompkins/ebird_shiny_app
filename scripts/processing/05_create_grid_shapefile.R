@@ -10,8 +10,13 @@ base_map_data <- similarity_index %>%
   distinct(geo_index_compare, geometry)
 
 base_map_data %>% 
-  ggplot() +
-  geom_sf()
+  mutate(geometry = st_buffer(geometry, 
+                              dist = 5000,
+                              #endCapStyle = "SQUARE",
+                              joinStyle = "BEVEL")) |> 
+  st_transform(crs = "EPSG:4326") %>% 
+  leaflet() |> 
+  addPolygons()
 
 list.files("data/big/grid_shapefile", full.names = T) %>% 
   map(file.remove)
